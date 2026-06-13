@@ -1,0 +1,859 @@
+{
+  "name": "WF: 8- Central Risk Ethics and Compliance Authority System",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "2a72f865-5d1c-4695-b545-8cfb6b956491",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1344,
+        528
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "conservative_threshold",
+              "value": "medium",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "high_risk_keywords",
+              "value": "[\"harm\", \"unsafe\", \"illegal\", \"violation\", \"bias\"]",
+              "type": "array"
+            },
+            {
+              "id": "id-4",
+              "name": "founder_escalation_enabled",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "bd670007-1c75-4c9f-85fe-84a77478f9dc",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -672,
+        528
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.payload }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are the Legal Compliance Agent for CREA (Central Risk, Ethics & Compliance Authority).\n\nYour task is to analyze the provided action/content for legal and regulatory violations:\n- Regulatory compliance (GDPR, CCPA, HIPAA, etc.)\n- Forbidden claims (medical, financial, legal advice without disclaimers)\n- Jurisdictional issues and cross-border compliance\n- Intellectual property violations\n- Consumer protection laws\n- Industry-specific regulations\n\nAnalyze the payload thoroughly and return your assessment in the required JSON format.\n\nContext from request:\nSource Workflow: {{ $json.source_workflow }}\nAction Type: {{ $json.action_type }}\nRisk Context: {{ $json.risk_context }}\nMode: {{ $json.mode }}"
+        }
+      },
+      "id": "46482e37-d47b-4ef5-aafa-466d73001e49",
+      "name": "Legal Compliance Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        0,
+        16
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.payload }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are the Safety Override Agent for CREA (Central Risk, Ethics & Compliance Authority).\n\nYour task is to analyze the provided action/content for safety risks:\n- Physical harm risk or dangerous instructions\n- Medical misinformation or unsafe health advice\n- Self-harm or violence promotion\n- Hazardous product recommendations\n- Child safety concerns\n- Emergency response appropriateness\n\nThis is the highest priority check. Any safety risk must be flagged immediately.\n\nAnalyze the payload thoroughly and return your assessment in the required JSON format.\n\nContext from request:\nSource Workflow: {{ $json.source_workflow }}\nAction Type: {{ $json.action_type }}\nRisk Context: {{ $json.risk_context }}\nMode: {{ $json.mode }}"
+        }
+      },
+      "id": "6b8abac7-9773-4114-9af4-815f8bcc1a16",
+      "name": "Safety Override Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        0,
+        416
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.payload }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are the Policy Validation Agent for CREA (Central Risk, Ethics & Compliance Authority).\n\nYour task is to analyze the provided action/content against internal policies:\n- Internal ethics policy compliance\n- Brand guidelines and tone of voice\n- Content standards and quality requirements\n- Escalation rules and approval workflows\n- Data handling and privacy policies\n- Customer communication standards\n\nAnalyze the payload thoroughly and return your assessment in the required JSON format.\n\nContext from request:\nSource Workflow: {{ $json.source_workflow }}\nAction Type: {{ $json.action_type }}\nRisk Context: {{ $json.risk_context }}\nMode: {{ $json.mode }}"
+        }
+      },
+      "id": "32addeb1-3bb1-4d2f-9c16-41253eb93402",
+      "name": "Policy Validation Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        0,
+        928
+      ],
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "d95947f4-d159-4887-92f0-14555a46ea6d",
+      "name": "OpenAI Chat Model - Legal",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        16,
+        240
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "9c31ebc5-2aa0-4851-82b2-c1654a4234b7",
+      "name": "OpenAI Chat Model - Safety",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        16,
+        640
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "dc4712ee-62e8-4c92-a541-7d8c34191ff3",
+      "name": "OpenAI Chat Model - Policy",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        16,
+        1152
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"legal_violation\":{\"type\":\"boolean\"},\"violations\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"severity\":{\"type\":\"string\",\"enum\":[\"low\",\"medium\",\"high\"]},\"explanation\":{\"type\":\"string\"}},\"required\":[\"legal_violation\",\"violations\",\"severity\",\"explanation\"]}"
+      },
+      "id": "a657201d-697f-4b02-82df-ab189c580613",
+      "name": "Legal Compliance Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        144,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"unsafe\":{\"type\":\"boolean\"},\"safety_risk_level\":{\"type\":\"string\",\"enum\":[\"low\",\"medium\",\"high\"]},\"risk_categories\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"explanation\":{\"type\":\"string\"}},\"required\":[\"unsafe\",\"safety_risk_level\",\"explanation\"]}"
+      },
+      "id": "9f28c0da-7771-48c6-8958-1d1258b68752",
+      "name": "Safety Override Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        144,
+        640
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"policy_violation\":{\"type\":\"boolean\"},\"violated_policies\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"severity\":{\"type\":\"string\",\"enum\":[\"low\",\"medium\",\"high\"]},\"explanation\":{\"type\":\"string\"}},\"required\":[\"policy_violation\",\"severity\",\"explanation\"]}"
+      },
+      "id": "8c6b7354-6a86-48fe-92aa-ac47cffbc9c0",
+      "name": "Policy Validation Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        144,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "b443086c-0136-4b40-b99e-6512a8679b7b",
+      "name": "Aggregate Risk Analysis Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        352,
+        528
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// CREA Eligibility Gate\n// Exit immediately if not eligible for CREA review\n\nconst item = $input.item.json;\n\n// Extract relevant fields\nconst mode = item.mode || '';\nconst confidence = parseFloat(item.confidence) || 0;\nconst status = item.status || '';\nconst risk_level = item.risk_level || '';\nconst human_approval_received = item.human_approval_received || false;\n\n// Check eligibility conditions\nconst isEligible = (\n  mode === 'execute' &&\n  confidence >= 0.90 &&\n  status !== 'paused' && status !== 'waiting' &&\n  !(['medium', 'high'].includes(risk_level) && human_approval_received !== true)\n);\n\nif (!isEligible) {\n  // Not eligible - return SKIPPED status\n  return {\n    json: {\n      ...item,\n      status: 'SKIPPED_NOT_ELIGIBLE',\n      eligible: false,\n      eligibility_reason: `Failed eligibility check: mode=${mode}, confidence=${confidence}, status=${status}, risk_level=${risk_level}, human_approval=${human_approval_received}`\n    }\n  };\n}\n\n// Eligible - pass through with eligible flag\nreturn {\n  json: {\n    ...item,\n    eligible: true\n  }\n};"
+      },
+      "id": "fa918ef4-b2e7-4ba0-b421-712ee1c40ee1",
+      "name": "Eligibility Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        528
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.risk_level }}",
+                    "rightValue": "low",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "b16cb5a3-dbfe-41e2-8d9b-c3471d2e5955"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Low Risk"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.risk_level }}",
+                    "rightValue": "medium",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "ab3a712e-8a2f-46ef-91b2-a625303537f2"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Medium Risk"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.risk_level }}",
+                    "rightValue": "high",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "9d46087e-881f-4547-b38c-e4e8a19f6cab"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "High Risk"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "id": "92ac7a49-4038-413c-844f-d24978f11bbc",
+      "name": "Risk-Tier Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -224,
+        512
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Final Decision Node - Format CREA Decision in Strict Schema\n// Extract aggregated risk analysis results\nconst aggregatedData = $input.all();\n\n// Initialize decision variables\nlet approved = true;\nlet riskLevel = 'low';\nlet checksRun = [];\nlet violationReason = '';\nlet violations = [];\nlet inputRiskLevel = 'low';\nlet requestId = 'UNKNOWN';\nlet systemConfidence = 0;\n\n// Extract request_id and confidence from first item\nif (aggregatedData.length > 0) {\n  const firstItem = aggregatedData[0].json;\n  if (firstItem.request_id) {\n    requestId = firstItem.request_id;\n  }\n  if (firstItem.confidence !== undefined) {\n    systemConfidence = firstItem.confidence;\n  }\n  if (firstItem.risk_level) {\n    inputRiskLevel = firstItem.risk_level;\n  }\n}\n\n// Define which checks run for each risk tier\nconst riskTierChecks = {\n  'low': ['policy_validation'],\n  'medium': ['policy_validation', 'legal_compliance'],\n  'high': ['policy_validation', 'legal_compliance', 'bias_detection', 'safety_override']\n};\n\nconst expectedChecks = riskTierChecks[inputRiskLevel] || ['policy_validation'];\n\n// Process each agent's results\nfor (const item of aggregatedData) {\n  const json = item.json;\n  \n  // Bias Detection Agent\n  if (json.bias_detected !== undefined) {\n    if (!checksRun.includes('bias_detection')) {\n      checksRun.push('bias_detection');\n    }\n    if (json.bias_detected) {\n      approved = false;\n      violations.push(`Bias detected: ${json.explanation}`);\n      if (json.bias_severity === 'high') {\n        riskLevel = 'high';\n      } else if (json.bias_severity === 'medium' && riskLevel !== 'high') {\n        riskLevel = 'medium';\n      }\n    }\n  }\n  \n  // Legal Compliance Agent\n  if (json.legal_violation !== undefined) {\n    if (!checksRun.includes('legal_compliance')) {\n      checksRun.push('legal_compliance');\n    }\n    if (json.legal_violation) {\n      approved = false;\n      violations.push(`Legal violation: ${json.explanation}`);\n      if (json.severity === 'high') {\n        riskLevel = 'high';\n      } else if (json.severity === 'medium' && riskLevel !== 'high') {\n        riskLevel = 'medium';\n      }\n    }\n  }\n  \n  // Safety Override Agent\n  if (json.unsafe !== undefined) {\n    if (!checksRun.includes('safety_override')) {\n      checksRun.push('safety_override');\n    }\n    if (json.unsafe) {\n      approved = false;\n      violations.push(`Safety risk: ${json.explanation}`);\n      if (json.safety_risk_level === 'high') {\n        riskLevel = 'high';\n      } else if (json.safety_risk_level === 'medium' && riskLevel !== 'high') {\n        riskLevel = 'medium';\n      }\n    }\n  }\n  \n  // Policy Validation Agent\n  if (json.policy_violation !== undefined) {\n    if (!checksRun.includes('policy_validation')) {\n      checksRun.push('policy_validation');\n    }\n    if (json.policy_violation) {\n      approved = false;\n      violations.push(`Policy violation: ${json.explanation}`);\n      if (json.severity === 'high') {\n        riskLevel = 'high';\n      } else if (json.severity === 'medium' && riskLevel !== 'high') {\n        riskLevel = 'medium';\n      }\n    }\n  }\n}\n\n// Format violation reason\nif (violations.length > 0) {\n  violationReason = violations.join('; ');\n} else {\n  violationReason = 'No violations detected';\n}\n\n// Build final CREA decision in strict schema\nconst creaDecision = {\n  crea_decision: approved ? 'approved' : 'blocked',\n  risk_level: riskLevel,\n  input_risk_level: inputRiskLevel,\n  checks_run: checksRun,\n  violation_reason: violationReason,\n  authority_source: 'CREA',\n  timestamp: new Date().toISOString(),\n  request_id: requestId,\n  confidence: systemConfidence\n};\n\nreturn [{ json: creaDecision }];"
+      },
+      "id": "8d7692e3-7598-44ab-b416-dd85660d145d",
+      "name": "Final Decision Node",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        528
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// CREA INPUT VALIDATION GATE (NON-NEGOTIABLE)\n// Immediately reject execution if critical inputs are missing\n\nconst item = $input.item.json;\n\n// Extract required fields\nconst request_id = item.request_id;\nconst confidence = item.confidence;\nconst risk_level = item.risk_level;\nconst payload = item.payload;\n\n// Validation: Check for missing required fields\nconst missingFields = [];\n\nif (request_id === undefined || request_id === null || request_id === '') {\n  missingFields.push('request_id');\n}\n\nif (confidence === undefined || confidence === null) {\n  missingFields.push('confidence');\n}\n\nif (risk_level === undefined || risk_level === null || risk_level === '') {\n  missingFields.push('risk_level');\n}\n\nif (payload === undefined || payload === null || payload === '') {\n  missingFields.push('payload');\n}\n\n// REJECT if any required field is missing\nif (missingFields.length > 0) {\n  return {\n    json: {\n      workflow_id: 'WF-8',\n      request_id: request_id || 'UNKNOWN',\n      decision: 'TEMPORARY_BLOCK',\n      blocked_by: 'CREA',\n      reason: `CREA input validation failed: missing required fields [${missingFields.join(', ')}]`,\n      confidence: null,\n      risk_level: 'high',\n      binding: true,\n      expires: null,\n      audit: {\n        timestamp: new Date().toISOString(),\n        evaluated_by: 'CREA',\n        notes: ['Input validation gate rejected incomplete request']\n      },\n      status: 'rejected',\n      validation_failed: true\n    }\n  };\n}\n\n// Pass through if validation succeeds\nreturn {\n  json: {\n    ...item,\n    validation_passed: true\n  }\n};"
+      },
+      "id": "e8339eb0-e27f-4f7c-8e3b-8886095697d3",
+      "name": "Input Validation Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        528
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// SYSTEM CONFIDENCE VALIDATION\n// Verify confidence is a valid system-level trust metric\n\nconst item = $input.item.json;\n\n// Check if validation already failed\nif (item.validation_failed === true) {\n  return { json: item };\n}\n\nconst confidence = item.confidence;\n\n// Validate confidence is a number between 0.0 and 1.0\nconst isValidConfidence = (\n  typeof confidence === 'number' &&\n  !isNaN(confidence) &&\n  confidence >= 0.0 &&\n  confidence <= 1.0\n);\n\nif (!isValidConfidence) {\n  return {\n    json: {\n      workflow_id: 'WF-8',\n      request_id: item.request_id || 'UNKNOWN',\n      decision: 'TEMPORARY_BLOCK',\n      blocked_by: 'CREA',\n      reason: `Invalid system confidence: received ${confidence}, expected number between 0.0 and 1.0`,\n      confidence: null,\n      risk_level: 'high',\n      binding: true,\n      expires: null,\n      audit: {\n        timestamp: new Date().toISOString(),\n        evaluated_by: 'CREA',\n        notes: ['Confidence validation failed - invalid confidence value']\n      },\n      status: 'rejected',\n      validation_failed: true\n    }\n  };\n}\n\n// Pass through if confidence is valid\nreturn {\n  json: {\n    ...item,\n    confidence_validated: true\n  }\n};"
+      },
+      "id": "b96d7fc1-dbfe-417c-9bc6-049009d14ac5",
+      "name": "Confidence Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        528
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// BINDING DECISION OUTPUT (MANDATORY)\n// Transform CREA decision into strict binding decision object\n\nconst item = $input.item.json;\n\n// If validation failed earlier, return that rejection\nif (item.validation_failed === true) {\n  return { json: item };\n}\n\n// Extract CREA decision from Final Decision Node\nconst creaDecision = item.crea_decision || 'blocked';\nconst riskLevel = item.risk_level || 'high';\nconst violationReason = item.violation_reason || 'Unknown violation';\nconst checksRun = item.checks_run || [];\n\n// Determine final decision\nconst decision = creaDecision === 'approved' ? 'APPROVED' : 'TEMPORARY_BLOCK';\nconst blockedBy = decision === 'TEMPORARY_BLOCK' ? 'CREA' : null;\n\n// Extract original request data\nconst requestId = item.request_id || 'UNKNOWN';\nconst systemConfidence = item.confidence;\n\n// Build BINDING DECISION OBJECT (strict schema)\nconst bindingDecision = {\n  workflow_id: 'WF-8',\n  request_id: requestId,\n  decision: decision,\n  blocked_by: blockedBy,\n  reason: decision === 'TEMPORARY_BLOCK' ? violationReason : 'All CREA checks passed',\n  confidence: systemConfidence,\n  risk_level: riskLevel,\n  binding: true,\n  expires: null,\n  audit: {\n    timestamp: new Date().toISOString(),\n    evaluated_by: 'CREA',\n    notes: [\n      `Checks executed: ${checksRun.join(', ')}`,\n      `Decision: ${decision}`,\n      `Authority: FINAL AND ABSOLUTE`\n    ]\n  }\n};\n\nreturn { json: bindingDecision };"
+      },
+      "id": "279d310e-3100-4c3f-85d2-4f7c562641ed",
+      "name": "Binding Decision Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        528
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.payload }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Bias Detection Agent (L3) for CREA. Detect bias in shade matching, hiring, pricing or marketing content within the payload: racial/skin-tone bias, gender bias, demographic unfairness, harmful targeting. Return JSON only."
+        }
+      },
+      "id": "18eb3fc2-ab79-4e7c-a912-a05e4b212c76",
+      "name": "Bias Detection Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        0,
+        1320
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "f631c4fd-e2ee-4705-8813-14e5320dbf6f",
+      "name": "Model - Bias Detection",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        16,
+        1540
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"bias_detected\": {\"type\": \"boolean\"}, \"bias_severity\": {\"type\": \"string\", \"enum\": [\"low\", \"medium\", \"high\"]}, \"affected_groups\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"explanation\": {\"type\": \"string\"}}, \"required\": [\"bias_detected\", \"bias_severity\", \"explanation\"]}"
+      },
+      "id": "19236281-d633-481c-aff0-db5a46e9af6c",
+      "name": "Parser - Bias Detection",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        160,
+        1540
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.payload }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Audit Ops Agent (L4) for CREA, reporting to Legal Compliance. Produce an audit record for this request: what was checked, compliance score (0-100), and any log-worthy observations. You do not approve or block. Return JSON only."
+        }
+      },
+      "id": "4179e3e1-df18-4b70-9a92-b67b8875d89e",
+      "name": "Audit Ops Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        0,
+        1720
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "f70ae32a-e0fc-4aa1-b9b1-394da534f7d2",
+      "name": "Model - Audit Ops",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        16,
+        1940
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"audit_findings\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"compliance_score\": {\"type\": \"number\"}, \"log_summary\": {\"type\": \"string\"}, \"explanation\": {\"type\": \"string\"}}, \"required\": [\"compliance_score\", \"log_summary\"]}"
+      },
+      "id": "248a5734-6bad-48fa-a5dc-356a0bbe6245",
+      "name": "Parser - Audit Ops",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        160,
+        1940
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI Chat Model - Legal": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Legal Compliance Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Safety": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Safety Override Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Policy": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Policy Validation Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Legal Compliance Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Legal Compliance Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Safety Override Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Safety Override Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Policy Validation Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Policy Validation Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Legal Compliance Agent": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Risk Analysis Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Safety Override Agent": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Risk Analysis Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Policy Validation Agent": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Risk Analysis Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Eligibility Gate": {
+      "main": [
+        [
+          {
+            "node": "Risk-Tier Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Risk Analysis Results": {
+      "main": [
+        [
+          {
+            "node": "Final Decision Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk-Tier Router": {
+      "main": [
+        [
+          {
+            "node": "Policy Validation Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Legal Compliance Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Safety Override Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Bias Detection Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Audit Ops Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Input Validation Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Validation Gate": {
+      "main": [
+        [
+          {
+            "node": "Confidence Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confidence Validation": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Eligibility Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Decision Node": {
+      "main": [
+        [
+          {
+            "node": "Binding Decision Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model - Bias Detection": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Bias Detection Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser - Bias Detection": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Bias Detection Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model - Audit Ops": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Audit Ops Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser - Audit Ops": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Audit Ops Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bias Detection Agent": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Risk Analysis Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audit Ops Agent": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Risk Analysis Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "faaebb04-c280-43d1-b032-0e6a431c1e18",
+  "meta": {
+    "instanceId": "2f76907fbed960a398910145b73fdcdcdaeab5424a9d76499bbf1f155042f8f0"
+  },
+  "id": "q1UDzKI9hUOR816f",
+  "tags": []
+}

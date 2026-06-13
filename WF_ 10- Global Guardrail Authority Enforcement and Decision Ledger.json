@@ -1,0 +1,1886 @@
+{
+  "name": "WF: 10- Global Guardrail Authority Enforcement and Decision Ledger",
+  "nodes": [
+    {
+      "parameters": {
+        "multipleMethods": true,
+        "path": "wf10-decision-contract",
+        "responseMode": "responseNode",
+        "options": {},
+        "httpMethod": [
+          "GET",
+          "POST"
+        ]
+      },
+      "id": "73081206-bc56-42e9-825b-1c4c331bc28c",
+      "name": "Receive Decision Contract",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1408,
+        112
+      ],
+      "webhookId": "c8419568-da7d-43a9-972c-33b44b6a6c49",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "founderEmail",
+              "value": "admin@imperiality.app",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "opsSlackChannel",
+              "value": "C0000000000",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "n8nApiUrl",
+              "value": "https://imperiality.app.n8n.cloud/api/v1",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "n8nApiKey",
+              "value": "YOUR_N8N_API_KEY_HERE",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "39dd4d12-56c2-4407-8ca3-c2e32452d851",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1120,
+        112
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "request_id",
+              "value": "={{ $('Receive Decision Contract').item.json.body.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "source_workflow",
+              "value": "={{ $('Receive Decision Contract').item.json.body.source_workflow }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "department",
+              "value": "={{ $('Receive Decision Contract').item.json.body.department }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "task_type",
+              "value": "={{ $('Receive Decision Contract').item.json.body.task_type }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "mode",
+              "value": "={{ $('Receive Decision Contract').item.json.body.mode }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "confidence",
+              "value": "={{ $('Receive Decision Contract').item.json.body.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "id-7",
+              "name": "risk_level",
+              "value": "={{ $('Receive Decision Contract').item.json.body.risk_level }}",
+              "type": "string"
+            },
+            {
+              "id": "id-8",
+              "name": "founder_available",
+              "value": "={{ $('Receive Decision Contract').item.json.body.founder_available }}",
+              "type": "boolean"
+            },
+            {
+              "id": "id-9",
+              "name": "crea_status",
+              "value": "={{ $('Receive Decision Contract').item.json.body.crea_status }}",
+              "type": "string"
+            },
+            {
+              "id": "id-10",
+              "name": "crea_reason",
+              "value": "={{ $('Receive Decision Contract').item.json.body.crea_reason }}",
+              "type": "string"
+            },
+            {
+              "id": "id-11",
+              "name": "decision_status",
+              "value": "={{ $('Receive Decision Contract').item.json.body.decision_status }}",
+              "type": "string"
+            },
+            {
+              "id": "id-12",
+              "name": "decision_summary",
+              "value": "={{ $('Receive Decision Contract').item.json.body.decision_summary }}",
+              "type": "string"
+            },
+            {
+              "id": "id-13",
+              "name": "failure_count",
+              "value": "={{ $('Receive Decision Contract').item.json.body.failure_count }}",
+              "type": "number"
+            },
+            {
+              "id": "id-14",
+              "name": "timestamp",
+              "value": "={{ $('Receive Decision Contract').item.json.body.timestamp }}",
+              "type": "string"
+            },
+            {
+              "id": "id-15",
+              "name": "audit",
+              "value": "={{ $('Receive Decision Contract').item.json.body.audit }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8ce3e2ae-f391-42eb-905f-926963e3a7d9",
+      "name": "Extract Contract Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -848,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "risk_score",
+              "value": "={{ $json.risk_level === 'low' ? 0.2 : ($json.risk_level === 'medium' ? 0.6 : 0.9) }}",
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "4f25287f-24a7-4384-8edc-7b7af866f785",
+      "name": "STEP 2: Normalize Risk Level",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "simulation",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ca683884-934d-41b9-9d17-31a83a2f46b5",
+      "name": "STEP 3: Check Simulation Mode",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        848,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "execution_allowed",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "decision_status",
+              "value": "proposed",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "reason",
+              "value": "Simulation mode - execution blocked. No side effects permitted.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "d227c0f8-8397-41f0-9ba9-12564949248f",
+      "name": "Block: Simulation Mode",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.confidence }}",
+              "rightValue": "0.9",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "bd9879c2-3d5a-4192-a2c6-9f84bbaa341f",
+      "name": "STEP 4: Check Confidence Threshold",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.risk_level }}",
+              "rightValue": "medium",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.risk_level }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-3",
+              "leftValue": "={{ $json.founder_available }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "42715633-769a-4cae-93a6-8c4c2bf490c0",
+      "name": "STEP 5: Check Founder Authority",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1408,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "options": {
+          "webhookSuffix": "founder-approval"
+        }
+      },
+      "id": "abe2d42d-64af-4bfd-af82-f6c902b249a7",
+      "name": "WAIT: Founder Approval Required",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        0
+      ],
+      "webhookId": "601dc789-eb6e-4c02-87ce-1117fac861e5"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.crea_status }}",
+                    "rightValue": "blocked",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "blocked"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.crea_status }}",
+                    "rightValue": "needs_human",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "needs_human"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.crea_status }}",
+                    "rightValue": "approved",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "approved"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.crea_status }}",
+                    "rightValue": "pending",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pending"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "82db1ba6-25cb-42bd-afed-49148c72fa20",
+      "name": "STEP 6: Route by CREA Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1680,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "execution_allowed",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "decision_status",
+              "value": "blocked",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "reason",
+              "value": "={{ 'CREA blocked this action: ' + ($json.crea_reason || 'No reason provided') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "84d2c91e-21cb-43bd-8a29-ad6c2d3af8fe",
+      "name": "Block: CREA Blocked",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1968,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "execution_allowed",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "decision_status",
+              "value": "halted",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "reason",
+              "value": "={{ 'CREA requires human review: ' + ($json.crea_reason || 'Manual approval needed') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "b7c78e49-6cec-4707-a9ea-0a3152731c60",
+      "name": "Halt: CREA Needs Human",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1968,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.mode === 'execute' && $json.confidence < 0.9 }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.risk_level === 'high' && !$json.audit?.approvals?.length }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            },
+            {
+              "id": "id-3",
+              "leftValue": "={{ $json.crea_status === 'approved' && $json.decision_status === 'blocked' }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "cf9a2966-da08-48e4-8646-45a68a78a0d1",
+      "name": "STEP 7: Detect Contradictions",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1968,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "execution_allowed",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "decision_status",
+              "value": "blocked",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "reason",
+              "value": "Contradiction detected in decision contract - escalating to Founder",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "contradiction_details",
+              "value": "={{ 'Mode: ' + $json.mode + ', Confidence: ' + $json.confidence + ', Risk: ' + $json.risk_level + ', CREA: ' + $json.crea_status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "a93b3182-a810-428f-b5af-4cd817a1c423",
+      "name": "Block: Contradiction Detected",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2240,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.failure_count }}",
+              "rightValue": "3",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f1fcdb0d-e6bb-4ded-a4f4-1220e3c8b5b4",
+      "name": "STEP 8: Check Failure Circuit Breaker",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2240,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Workflow Configuration').item.json.n8nApiUrl + '/workflows/' + $json.resolved_workflow_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Workflow Configuration').item.json.n8nApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"active\": false,\n  \"tags\": [\n    {\n      \"name\": \"FROZEN_BY_WF10\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "93dfd8f3-a9db-43b7-987d-7e17ccddd581",
+      "name": "Freeze Source Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3088,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "execution_allowed",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "decision_status",
+              "value": "blocked",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "reason",
+              "value": "={{ 'Circuit breaker triggered - ' + $json.failure_count + ' failures detected. Workflow ' + $json.source_workflow + ' has been frozen.' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "3889c454-e1a3-4b00-a86c-91879d4cecf5",
+      "name": "Block: Circuit Breaker Triggered",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3088,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Workflow Configuration').item.json.founderEmail }}",
+        "subject": "={{ '🚨 WF-10 CIRCUIT BREAKER: ' + $json.source_workflow + ' FROZEN' }}",
+        "message": "={{ '⚠️ CRITICAL ALERT\n\nWorkflow: ' + $json.source_workflow + '\nFailure Count: ' + $json.failure_count + '\nDepartment: ' + $json.department + '\nTask: ' + $json.task_type + '\n\nThe workflow has been automatically deactivated due to repeated failures.\n\nImmediate action required.\n\nRequest ID: ' + $json.request_id + '\nTimestamp: ' + $json.timestamp }}",
+        "options": {}
+      },
+      "id": "e2f181f7-d351-4daa-b13b-7a5719c89964",
+      "name": "Notify Founder: Circuit Breaker",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3360,
+        400
+      ],
+      "webhookId": "ae78d3e9-b1dd-40f3-9221-5bf3bb6c5a73",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "skwdI5mECVtxTm2L",
+          "name": "Gmail OAuth2 API"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "execution_allowed",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "decision_status",
+              "value": "approved",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "reason",
+              "value": "All gates passed - execution authorized by WF-10",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "6389e501-0a7e-4541-80c7-28c62596be0b",
+      "name": "STEP 9: Approve Execution",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2528,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 6
+      },
+      "id": "b3b944d1-a2ac-48a7-bee5-0276c539c5d3",
+      "name": "Merge All Decision Paths",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3360,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "ledger_entry",
+              "value": "={{ { request_id: $json.request_id, source_workflow: $json.source_workflow, department: $json.department, task_type: $json.task_type, mode: $json.mode, confidence: $json.confidence, risk_level: $json.risk_level, execution_allowed: $json.execution_allowed, decision_status: $json.decision_status, reason: $json.reason, enforced_by: 'WF-10', timestamp: $now.toISO(), input_contract: $json, audit: $json.audit } }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "2a999287-4e07-4915-a38f-e53d8fb761be",
+      "name": "Prepare Ledger Entry",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3920,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "63272b3a-8df7-4dbd-83fd-efe63bd8ddef",
+      "name": "Return Authoritative Decision",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        4768,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Workflow Configuration').item.json.founderEmail }}",
+        "subject": "={{ '⚠️ WF-10 CONTRADICTION: ' + $json.source_workflow }}",
+        "message": "={{ '🔴 CONTRADICTION DETECTED\n\nWorkflow: ' + $json.source_workflow + '\nDepartment: ' + $json.department + '\nTask: ' + $json.task_type + '\n\nDetails:\n' + $json.contradiction_details + '\n\nReason: ' + $json.reason + '\n\nRequest ID: ' + $json.request_id + '\nTimestamp: ' + $json.timestamp + '\n\nThis decision has been blocked and requires your review.' }}",
+        "options": {}
+      },
+      "id": "94a19718-65e1-46ab-bc65-870ba79d294b",
+      "name": "Notify Founder: Contradiction",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3360,
+        800
+      ],
+      "webhookId": "12dedd10-593f-451a-8511-de6071e41467",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "skwdI5mECVtxTm2L",
+          "name": "Gmail OAuth2 API"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Configuration').item.json.opsSlackChannel }}"
+        },
+        "text": "={{ '🛑 *WF-10 HIGH RISK BLOCK*\\n\\n*Workflow:* ' + $json.source_workflow + '\\n*Department:* ' + $json.department + '\\n*Task:* ' + $json.task_type + '\\n*Risk Level:* ' + $json.risk_level + '\\n*CREA Status:* ' + $json.crea_status + '\\n*Reason:* ' + $json.reason + '\\n\\n*Request ID:* ' + $json.request_id + '\\n*Timestamp:* ' + $json.timestamp }}",
+        "otherOptions": {},
+        "authentication": "accessToken"
+      },
+      "id": "21d34b27-ebac-4d0e-aba0-922134621254",
+      "name": "Alert Operations: High Risk Block",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        3360,
+        608
+      ],
+      "webhookId": "a3d1c8a4-063a-41d9-8e71-9496570a167f",
+      "credentials": {
+        "slackApi": {
+          "id": "REPLACE_WITH_SLACK_CRED",
+          "name": "Slack account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst validModes = ['simulation', 'execute'];\nconst validRiskLevels = ['low', 'medium', 'high'];\nconst validCreaStatuses = ['pending', 'approved', 'blocked', 'needs_human'];\nconst validDecisionStatuses = ['proposed', 'approved', 'blocked', 'halted', 'pending'];\n\nconst results = items.map(item => {\n  const data = item.json;\n  const errors = [];\n\n  if (!data.request_id || typeof data.request_id !== 'string' || data.request_id.trim() === '') errors.push('request_id must be non-empty string');\n  if (!data.source_workflow || typeof data.source_workflow !== 'string' || data.source_workflow.trim() === '') errors.push('source_workflow must be non-empty string');\n  if (!data.department || typeof data.department !== 'string' || data.department.trim() === '') errors.push('department must be non-empty string');\n  if (!data.task_type || typeof data.task_type !== 'string' || data.task_type.trim() === '') errors.push('task_type must be non-empty string');\n  if (!validModes.includes(data.mode)) errors.push('mode must be simulation or execute');\n  if (typeof data.confidence !== 'number' || isNaN(data.confidence) || data.confidence < 0 || data.confidence > 1) errors.push('confidence must be number between 0 and 1');\n  if (!validRiskLevels.includes(data.risk_level)) errors.push('risk_level must be low, medium, or high');\n  if (typeof data.founder_available !== 'boolean') errors.push('founder_available must be boolean');\n  if (!validCreaStatuses.includes(data.crea_status)) errors.push('crea_status must be pending, approved, blocked, or needs_human');\n  if (data.decision_status && !validDecisionStatuses.includes(data.decision_status)) errors.push('decision_status must be valid enum');\n  if (typeof data.failure_count !== 'number' || !Number.isInteger(data.failure_count) || data.failure_count < 0) errors.push('failure_count must be integer >= 0');\n  if (!data.audit || typeof data.audit !== 'object' || Array.isArray(data.audit)) errors.push('audit must be object');\n\n  if (errors.length > 0) {\n    return {\n      json: {\n        ...data,\n        validation_passed: false,\n        validation_errors: errors,\n        execution_allowed: false,\n        decision_status: 'blocked',\n        reason: 'Invalid Universal Contract Schema: ' + errors.join('; ')\n      }\n    };\n  }\n\n  return {\n    json: {\n      ...data,\n      validation_passed: true\n    }\n  };\n});\n\nreturn results;"
+      },
+      "id": "446fa715-5086-4270-be1d-36f9a421608c",
+      "name": "FIX 1: Strict Schema Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst results = items.map(item => {\n  const data = item.json;\n  \n  if (!data.audit || !data.audit.original_contract_hash) {\n    return {\n      json: {\n        ...data,\n        locked_fields_valid: true,\n        locked_fields_note: 'No original hash to verify - first pass'\n      }\n    };\n  }\n  \n  const lockedFields = {\n    request_id: data.request_id,\n    mode: data.mode,\n    confidence: data.confidence,\n    risk_level: data.risk_level\n  };\n  \n  const currentHash = (() => { const _s = JSON.stringify(lockedFields); let _h = 5381; for (let _i = 0; _i < _s.length; _i++) { _h = ((_h << 5) + _h + _s.charCodeAt(_i)) >>> 0; } return _h.toString(16); })();\n  \n  if (currentHash !== data.audit.original_contract_hash) {\n    return {\n      json: {\n        ...data,\n        locked_fields_valid: false,\n        execution_allowed: false,\n        decision_status: 'blocked',\n        reason: 'Locked fields modified downstream — possible policy violation',\n        hash_expected: data.audit.original_contract_hash,\n        hash_actual: currentHash\n      }\n    };\n  }\n  \n  return {\n    json: {\n      ...data,\n      locked_fields_valid: true\n    }\n  };\n});\n\nreturn results;"
+      },
+      "id": "41972ef1-fd5a-4b29-a912-7bc4f5fd5f57",
+      "name": "FIX 2: Locked Field Integrity Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = items.map(item => {\n  const data = item.json;\n  const errors = [];\n  \n  if (!data.approval || typeof data.approval !== 'object') {\n    errors.push('Approval payload missing');\n  } else {\n    if (data.approval.request_id !== data.request_id) {\n      errors.push('Approval request_id mismatch');\n    }\n    if (data.approval.execution_allowed !== true) {\n      errors.push('Approval does not explicitly allow execution');\n    }\n    if (!data.approval.timestamp) {\n      errors.push('Approval timestamp missing');\n    }\n  }\n  \n  if (errors.length > 0) {\n    return {\n      json: {\n        ...data,\n        approval_valid: false,\n        execution_allowed: false,\n        decision_status: 'halted',\n        reason: 'Invalid or missing Founder approval: ' + errors.join('; ')\n      }\n    };\n  }\n  \n  return {\n    json: {\n      ...data,\n      approval_valid: true\n    }\n  };\n});\n\nreturn results;"
+      },
+      "id": "129e454e-9fb4-4500-a011-b6c2c306dce9",
+      "name": "FIX 3: Post-Resume Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "execution_allowed",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "decision_status",
+              "value": "halted",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "reason",
+              "value": "CREA review pending",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "9216cf15-0af4-403a-af64-c1b2fbdc0ee7",
+      "name": "FIX 4: Block CREA Pending",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1968,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst results = items.map(item => {\n  const data = item.json;\n  const sourceWorkflow = data.source_workflow;\n  \n  if (!sourceWorkflow) {\n    return {\n      json: {\n        ...data,\n        workflow_id_resolved: false,\n        execution_allowed: false,\n        decision_status: 'blocked',\n        reason: 'Unable to safely freeze source workflow — ID missing'\n      }\n    };\n  }\n  \n  const isNumeric = /^\\d+$/.test(sourceWorkflow);\n  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sourceWorkflow);\n  \n  if (isNumeric || isUUID) {\n    return {\n      json: {\n        ...data,\n        workflow_id_resolved: true,\n        resolved_workflow_id: sourceWorkflow\n      }\n    };\n  }\n  \n  return {\n    json: {\n      ...data,\n      workflow_id_resolved: false,\n      execution_allowed: false,\n      decision_status: 'blocked',\n      reason: 'Unable to safely freeze source workflow — ID mismatch or invalid format'\n    }\n  };\n});\n\nreturn results;"
+      },
+      "id": "c7dd97d4-3a9c-429a-9c12-9bf0b0a8aef1",
+      "name": "FIX 5: Resolve Workflow ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "l1",
+              "name": "ledger_status",
+              "value": "recorded",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "c8cb4fe5-17fa-41b7-b82f-5962066d1293",
+      "name": "FIX 6: Block on Ledger Failure",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4480,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst results = items.map(item => {\n  const data = item.json;\n  const hasExecutionAllowed = 'execution_allowed' in data;\n  const hasDecisionStatus = 'decision_status' in data && data.decision_status;\n  const hasReason = 'reason' in data && data.reason;\n\n  if (!hasExecutionAllowed || !hasDecisionStatus || !hasReason) {\n    return {\n      json: {\n        ...data,\n        execution_allowed: data.execution_allowed !== undefined ? data.execution_allowed : false,\n        decision_status: data.decision_status || 'blocked',\n        reason: data.reason || 'Incomplete enforcement path'\n      }\n    };\n  }\n\n  return { json: data };\n});\n\nreturn results;"
+      },
+      "id": "32ac0130-f446-4725-b125-81dc15e4b36f",
+      "name": "FIX 7: Enforce Mandatory Output Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3648,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "execution_allowed",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "decision_status",
+              "value": "blocked",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "reason",
+              "value": "Confidence below execution threshold — human approval required",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "090c6b97-7368-4909-b6a9-b3aa9ec524ca",
+      "name": "FIX 8: Block Low Confidence Execute",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1408,
+        400
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a74c8aa4-c616-4168-9e90-84d580d717d9",
+      "name": "HALT: Schema Validation Failed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        0,
+        400
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {},
+      "id": "93a7daf1-ca4a-4b07-9a5b-b257c069a447",
+      "name": "HALT: Locked Fields Modified",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        288,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ \"WF-10 INVALID FOUNDER APPROVAL: \" + $json.reason + \" | Request ID: \" + $json.request_id }}"
+      },
+      "id": "9786917f-8230-4320-90f4-756e606a514c",
+      "name": "HALT: Invalid Founder Approval",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ \"WF-10 WORKFLOW ID RESOLUTION FAILED: \" + $json.reason + \" | Source workflow: \" + $json.source_workflow + \" | Request ID: \" + $json.request_id }}"
+      },
+      "id": "693a1ed7-0d40-488a-81b7-ac0cf6eb27c8",
+      "name": "HALT: Workflow ID Resolution Failed",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        3088,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.validation_passed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d041eca1-7e75-490d-9ea8-e67db2e587fd",
+      "name": "ISSUE A: Check Schema Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -288,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.locked_fields_valid }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "442d9162-39bd-4e4e-ac67-2661b4d8c8af",
+      "name": "ISSUE A: Check Locked Fields",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        288,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.decision_status }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.decision_status }}",
+              "rightValue": "executed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "c3a59c6a-7e4d-48a4-afd6-5870784ca183",
+      "name": "ISSUE B: Skip if Already Decided",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2240,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.approval_valid }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "31be5a4e-d616-46a7-8733-0801974f5766",
+      "name": "Check Post-Resume Validity",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.workflow_id_resolved }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c4b6057d-64c0-4bbd-8b7d-0684f0c70ae7",
+      "name": "Check Workflow ID Resolution",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2800,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "1yduxE6w1qGi25lGZkZn8UO6B_8g5BOhKFhWdAOApV-g"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "request_id": "={{ $json.ledger_entry.request_id }}",
+            "source_workflow": "={{ $json.ledger_entry.source_workflow }}",
+            "department": "={{ $json.ledger_entry.department }}",
+            "task_type": "={{ $json.ledger_entry.task_type }}",
+            "mode": "={{ $json.ledger_entry.mode }}",
+            "confidence": "={{ $json.ledger_entry.confidence }}",
+            "risk_level": "={{ $json.ledger_entry.risk_level }}",
+            "execution_allowed": "={{ $json.ledger_entry.execution_allowed }}",
+            "decision_status": "={{ $json.ledger_entry.decision_status }}",
+            "reason": "={{ $json.ledger_entry.reason }}",
+            "enforced_by": "={{ $json.ledger_entry.enforced_by }}",
+            "timestamp": "={{ $json.ledger_entry.timestamp }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "4ced4f24-7725-43e0-9596-04b072be2a9a",
+      "name": "STEP 10: Append to Decision Ledger",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        4208,
+        208
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_SHEETS_CRED",
+          "name": "Google Sheets account"
+        }
+      },
+      "disabled": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive Decision Contract": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Extract Contract Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STEP 2: Normalize Risk Level": {
+      "main": [
+        [
+          {
+            "node": "STEP 3: Check Simulation Mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STEP 3: Check Simulation Mode": {
+      "main": [
+        [
+          {
+            "node": "Block: Simulation Mode",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "STEP 4: Check Confidence Threshold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STEP 4: Check Confidence Threshold": {
+      "main": [
+        [
+          {
+            "node": "FIX 8: Block Low Confidence Execute",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "STEP 5: Check Founder Authority",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STEP 5: Check Founder Authority": {
+      "main": [
+        [
+          {
+            "node": "WAIT: Founder Approval Required",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "STEP 6: Route by CREA Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STEP 6: Route by CREA Status": {
+      "main": [
+        [
+          {
+            "node": "Block: CREA Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Halt: CREA Needs Human",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "STEP 7: Detect Contradictions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "STEP 7: Detect Contradictions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "FIX 4: Block CREA Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STEP 7: Detect Contradictions": {
+      "main": [
+        [
+          {
+            "node": "Block: Contradiction Detected",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "STEP 8: Check Failure Circuit Breaker",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ISSUE B: Skip if Already Decided",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STEP 8: Check Failure Circuit Breaker": {
+      "main": [
+        [
+          {
+            "node": "FIX 5: Resolve Workflow ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "STEP 9: Approve Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Freeze Source Workflow": {
+      "main": [
+        [
+          {
+            "node": "Block: Circuit Breaker Triggered",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block: Circuit Breaker Triggered": {
+      "main": [
+        [
+          {
+            "node": "Notify Founder: Circuit Breaker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block: Simulation Mode": {
+      "main": [
+        [
+          {
+            "node": "Merge All Decision Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block: CREA Blocked": {
+      "main": [
+        [
+          {
+            "node": "Merge All Decision Paths",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Alert Operations: High Risk Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Halt: CREA Needs Human": {
+      "main": [
+        [
+          {
+            "node": "Merge All Decision Paths",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Block: Contradiction Detected": {
+      "main": [
+        [
+          {
+            "node": "Merge All Decision Paths",
+            "type": "main",
+            "index": 3
+          },
+          {
+            "node": "Notify Founder: Contradiction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Founder: Circuit Breaker": {
+      "main": [
+        [
+          {
+            "node": "Merge All Decision Paths",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "STEP 9: Approve Execution": {
+      "main": [
+        [
+          {
+            "node": "Merge All Decision Paths",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "Merge All Decision Paths": {
+      "main": [
+        [
+          {
+            "node": "Prepare Ledger Entry",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "FIX 7: Enforce Mandatory Output Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Contract Fields": {
+      "main": [
+        [
+          {
+            "node": "FIX 1: Strict Schema Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FIX 1: Strict Schema Validation": {
+      "main": [
+        [
+          {
+            "node": "ISSUE A: Check Schema Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FIX 2: Locked Field Integrity Check": {
+      "main": [
+        [
+          {
+            "node": "ISSUE A: Check Locked Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FIX 8: Block Low Confidence Execute": {
+      "main": [
+        [
+          {
+            "node": "Merge All Decision Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WAIT: Founder Approval Required": {
+      "main": [
+        [
+          {
+            "node": "FIX 3: Post-Resume Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FIX 4: Block CREA Pending": {
+      "main": [
+        [
+          {
+            "node": "Merge All Decision Paths",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "FIX 7: Enforce Mandatory Output Fields": {
+      "main": [
+        [
+          {
+            "node": "Prepare Ledger Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Ledger Entry": {
+      "main": [
+        [
+          {
+            "node": "STEP 10: Append to Decision Ledger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FIX 6: Block on Ledger Failure": {
+      "main": [
+        [
+          {
+            "node": "Return Authoritative Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ISSUE A: Check Schema Validation": {
+      "main": [
+        [
+          {
+            "node": "FIX 2: Locked Field Integrity Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HALT: Schema Validation Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ISSUE A: Check Locked Fields": {
+      "main": [
+        [
+          {
+            "node": "HALT: Locked Fields Modified",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "STEP 2: Normalize Risk Level",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ISSUE B: Skip if Already Decided": {
+      "main": [
+        [
+          {
+            "node": "Merge All Decision Paths",
+            "type": "main",
+            "index": 5
+          }
+        ],
+        [
+          {
+            "node": "STEP 8: Check Failure Circuit Breaker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FIX 3: Post-Resume Validation": {
+      "main": [
+        [
+          {
+            "node": "Check Post-Resume Validity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Post-Resume Validity": {
+      "main": [
+        [
+          {
+            "node": "HALT: Invalid Founder Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "STEP 6: Route by CREA Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FIX 5: Resolve Workflow ID": {
+      "main": [
+        [
+          {
+            "node": "Check Workflow ID Resolution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Workflow ID Resolution": {
+      "main": [
+        [
+          {
+            "node": "HALT: Workflow ID Resolution Failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Freeze Source Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STEP 10: Append to Decision Ledger": {
+      "main": [
+        [
+          {
+            "node": "FIX 6: Block on Ledger Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HALT: Schema Validation Failed": {
+      "main": [
+        [
+          {
+            "node": "Return Authoritative Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HALT: Locked Fields Modified": {
+      "main": [
+        [
+          {
+            "node": "Return Authoritative Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4d810dc5-0823-4001-ba36-f90aa5a6c27e",
+  "meta": {
+    "instanceId": "2f76907fbed960a398910145b73fdcdcdaeab5424a9d76499bbf1f155042f8f0"
+  },
+  "id": "r3FYinnG2o1qUGnq",
+  "tags": []
+}

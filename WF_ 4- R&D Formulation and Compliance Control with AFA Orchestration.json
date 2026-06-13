@@ -1,0 +1,2006 @@
+{
+  "name": "WF: 4- R&D Formulation and Compliance Control with AFA Orchestration",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "request_id"
+            },
+            {
+              "name": "mode"
+            },
+            {
+              "name": "confidence",
+              "type": "number"
+            },
+            {
+              "name": "risk_level"
+            },
+            {
+              "name": "payload",
+              "type": "object"
+            },
+            {
+              "name": "audit",
+              "type": "object"
+            },
+            {
+              "name": "product_type"
+            },
+            {
+              "name": "target_use"
+            },
+            {
+              "name": "constraints",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "id": "a54e0b78-3615-4cc1-afff-1b71a9c32e1c",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -6864,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "default_mode",
+              "value": "simulation",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "crea_workflow_id",
+              "value": "q1UDzKI9hUOR816f",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "coo_workflow_id",
+              "value": "tQ9crXF3P0NOlWDy",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "cmo_workflow_id",
+              "value": "IYl2NVikGCyySSU2",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f4eb3a93-0b4d-43ef-8a55-75863ed922a2",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -5968,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate Input Schema AND Preserve Universal Contract Fields\nconst items = $input.all();\nconst results = [];\n\n// Get universal contract fields from Execute Workflow Trigger\nconst triggerData = $('Execute Workflow Trigger').first().json;\nconst universalContract = {\n  request_id: triggerData.request_id || null,\n  mode: triggerData.mode || null,\n  confidence: triggerData.confidence || null,\n  risk_level: triggerData.risk_level || null,\n  audit: triggerData.audit || null\n};\n\nfor (const item of items) {\n  const data = item.json;\n  let isValid = true;\n  let errorMessage = '';\n  \n  // Check for required fields\n  const requiredFields = ['request_id', 'product_type', 'target_use', 'constraints'];\n  const missingFields = [];\n  \n  for (const field of requiredFields) {\n    if (!data[field]) {\n      missingFields.push(field);\n      isValid = false;\n    }\n  }\n  \n  if (missingFields.length > 0) {\n    errorMessage = `Missing required fields: ${missingFields.join(', ')}`;\n  }\n  \n  // Validate constraints object\n  if (data.constraints && typeof data.constraints === 'object') {\n    const requiredConstraintFields = ['budget', 'region', 'allergen_free'];\n    const missingConstraintFields = [];\n    \n    for (const field of requiredConstraintFields) {\n      if (data.constraints[field] === undefined || data.constraints[field] === null) {\n        missingConstraintFields.push(field);\n        isValid = false;\n      }\n    }\n    \n    if (missingConstraintFields.length > 0) {\n      if (errorMessage) errorMessage += '; ';\n      errorMessage += `Missing required constraint fields: ${missingConstraintFields.join(', ')}`;\n    }\n  } else if (data.constraints === undefined) {\n    isValid = false;\n    if (errorMessage) errorMessage += '; ';\n    errorMessage += 'constraints object is required';\n  }\n  \n  // Set mode from Workflow Configuration if not provided in input or universal contract\n  if (!data.mode && !universalContract.mode) {\n    data.mode = $('Workflow Configuration').first().json.default_mode || 'simulation';\n  }\n  \n  // Return validation result merged with universal contract fields\n  results.push({\n    json: {\n      ...universalContract,\n      ...data,\n      validation: {\n        isValid: isValid,\n        errorMessage: errorMessage || null\n      }\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "e8796f4c-974a-420f-bfd2-b1bd72a52dfd",
+      "name": "Validate Input Schema",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5744,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Validate Input Schema').item.json.validation.isValid }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2b2c83a3-9a75-4e13-9201-3cfa94fcbea4",
+      "name": "Check Input Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5520,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return standardized error response for invalid input\nconst items = $input.all();\n\n// Get validation error from previous node\nconst validationData = items[0]?.json?.validation || {};\nconst validationError = validationData.errorMessage || items[0]?.json?.error || 'Invalid or incomplete universal contract';\nconst requestId = items[0]?.json?.request_id || $execution.id;\n\nreturn [\n  {\n    json: {\n      status: 'rejected',\n      reason: 'Invalid or incomplete universal contract',\n      message: validationError,\n      request_id: requestId,\n      timestamp: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "id": "25b0717f-6948-4ea2-a6ab-0f7e5c532ae7",
+      "name": "Return Error - Invalid Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5296,
+        24
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Product Type: {{ $(\"Validate Input Schema\").item.json.product_type }}\nTarget Use: {{ $(\"Validate Input Schema\").item.json.target_use }}\nConstraints: {{ JSON.stringify($(\"Validate Input Schema\").item.json.constraints) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Ingredient Discovery Agent, a specialized AI expert in cosmetic ingredient research.\n\nYour task is to:\n1. Identify candidate ingredients suitable for the specified product type and target use\n2. Determine the functional role of each ingredient (emollient, preservative, active, etc.)\n3. Flag any known restrictions, allergens, or regulatory concerns\n4. Consider the provided constraints (budget, region, allergen-free requirements)\n\nReturn your findings in the structured JSON format defined by the output parser."
+        }
+      },
+      "id": "311550ab-52c2-4550-92b0-048ecfb4c6bc",
+      "name": "Ingredient Discovery Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -5072,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Discovered Ingredients: {{ JSON.stringify($json.ingredients) }}\nProduct Type: {{ $json.product_type }}\nTarget Use: {{ $json.target_use }}\nConstraints: {{ JSON.stringify($json.constraints) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Formula Suggestions Agent, a specialized AI expert in cosmetic formulation.\n\nYour task is to:\n1. Generate 3-5 candidate formulas using the discovered ingredients\n2. Ensure each formula is scientifically sound and balanced\n3. Specify exact concentrations for each ingredient (must sum to 100%)\n4. List intended benefits for each formula\n5. Consider manufacturability and stability\n\nReturn your formulas in the structured JSON format defined by the output parser."
+        }
+      },
+      "id": "c2a11dda-a788-4610-9b40-1623e2aa670a",
+      "name": "Formula Suggestions Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -4720,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Formulas to Test: {{ JSON.stringify($json.formulas) }}\nProduct Type: {{ $json.product_type }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Lab Simulation Agent, a specialized AI expert in cosmetic formulation testing.\n\nYour task is to:\n1. Simulate laboratory testing for each candidate formula\n2. Evaluate ingredient interactions and compatibility\n3. Assess manufacturability (mixing order, temperature requirements, equipment needs)\n4. Identify potential failure risks (separation, precipitation, pH instability)\n5. Flag formulas that would fail in actual lab conditions\n\nReturn your simulation results in the structured JSON format defined by the output parser."
+        }
+      },
+      "id": "3b0be582-866e-4adb-92e6-1976873a49cc",
+      "name": "Lab Simulation Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -4368,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Lab Results: {{ JSON.stringify($json.lab_results) }}\nFormulas: {{ JSON.stringify($json.formulas) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Stability Simulation Agent, a specialized AI expert in cosmetic product stability.\n\nYour task is to:\n1. Evaluate shelf life potential for each formula that passed lab testing\n2. Assess temperature sensitivity and storage requirements\n3. Identify degradation risks (oxidation, microbial growth, color change)\n4. Simulate accelerated aging conditions\n5. Provide stability scores (0-100) for each formula\n6. Flag formulas with unacceptable stability profiles\n\nReturn your stability assessment in the structured JSON format defined by the output parser."
+        }
+      },
+      "id": "468c33fe-7093-4e3d-8649-0dca58ca02ab",
+      "name": "Stability Simulation Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -4016,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Formulas: {{ JSON.stringify($json.formulas) }}\nStability Results: {{ JSON.stringify($json.stability_score) }}\nConstraints: {{ JSON.stringify($json.constraints) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Safety Assessment Agent, a specialized AI expert in cosmetic safety and toxicology.\n\nYour task is to:\n1. Assess toxicity risk for each ingredient and formula\n2. Evaluate irritation and sensitization potential\n3. Check for allergen exposure based on constraints\n4. Consider concentration limits and safe usage levels\n5. Determine overall safety status: PASS or FAIL\n6. Document all safety issues found\n\nCRITICAL: If any formula fails safety assessment, set safety_status to \"fail\" and the workflow will stop.\n\nReturn your safety assessment in the structured JSON format defined by the output parser."
+        }
+      },
+      "id": "abfcf0bb-b9b7-4642-ac1b-e220785f2389",
+      "name": "Safety Assessment Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -3664,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Safety Assessment Agent').item.json.safety_status }}",
+              "rightValue": "pass",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "93d3d8f0-7d2f-4e9b-8168-71fe39690668",
+      "name": "Check Safety Pass",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -3312,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return standardized error response for safety assessment failure\nconst items = $input.all();\nconst firstItem = items[0].json;\n\nconst errorResponse = {\n  status: 'blocked',\n  formulation_status: 'NOT APPROVED',\n  blocked_by: 'Safety Assessment',\n  reason: firstItem.safety_issues || firstItem.issues || 'Safety assessment did not pass required thresholds',\n  request_id: firstItem.request_id || $('Execute Workflow Trigger').item.json.request_id || 'unknown',\n  mode: firstItem.mode || $('Workflow Configuration').first().json.default_mode || 'simulation',\n  confidence: 0,\n  risk_level: 'high',\n  timestamp: new Date().toISOString()\n};\n\nreturn [{ json: errorResponse }];"
+      },
+      "id": "710c573f-6171-4086-95c7-13aa509797d2",
+      "name": "Return Error - Safety Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3088,
+        168
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Safe Formulas: {{ JSON.stringify($json.safe_formulas) }}\nFormulas: {{ JSON.stringify($json.formulas) }}\nRegion: {{ $json.constraints.region }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Compliance Check Agent, a specialized AI expert in cosmetic regulatory compliance.\n\nYour task is to:\n1. Validate formulas against regional cosmetic regulations (EU, FDA, etc.)\n2. Check for banned or restricted substances in the target region\n3. Verify concentration limits for regulated ingredients\n4. Assess labeling requirements and claims compliance\n5. Determine compliance status: true or false\n6. Document all violations found\n\nCRITICAL: If any formula fails compliance, set compliant to false and the workflow will stop.\n\nReturn your compliance assessment in the structured JSON format defined by the output parser."
+        }
+      },
+      "id": "4a53c92c-f0e6-432d-b450-d3455431fc8d",
+      "name": "Compliance Check Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -2640,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Compliance Check Agent').item.json.compliant }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9cb4c709-0c98-4768-8203-79cd484a83ef",
+      "name": "Check Compliance Pass",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2288,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return standardized error response for compliance failure\nconst items = $input.all();\nconst inputData = items[0].json;\n\nconst errorResponse = {\n  status: 'blocked',\n  formulation_status: 'NOT APPROVED',\n  blocked_by: 'Compliance Check',\n  violations: inputData.violations || inputData.issues || [],\n  request_id: inputData.request_id || $('Execute Workflow Trigger').item.json.request_id || 'unknown',\n  mode: inputData.mode || $('Workflow Configuration').first().json.default_mode || 'simulation',\n  confidence: inputData.confidence || 0,\n  risk_level: inputData.risk_level || 'high',\n  compliance_state: 'non_compliant',\n  timestamp: new Date().toISOString(),\n  message: 'Formula rejected due to compliance violations'\n};\n\nreturn [{ json: errorResponse }];"
+      },
+      "id": "1a404f74-4431-4739-a6ce-60f35c42d8d9",
+      "name": "Return Error - Compliance Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2064,
+        24
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Valid Formulas (passed all checks): {{ JSON.stringify($json.valid_formulas) }}\nFormulas: {{ JSON.stringify($json.formulas) }}\nBudget Constraint: {{ $json.constraints.budget }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Cost Optimization Agent, a specialized AI expert in cosmetic formulation cost analysis.\n\nYour task is to:\n1. Calculate estimated unit cost for each compliant formula\n2. Identify cost reduction opportunities (ingredient substitutions, sourcing alternatives)\n3. Assess scalability and bulk pricing potential\n4. Balance cost optimization with quality and performance\n5. Ensure formulas remain within budget constraints\n\nReturn your cost analysis in the structured JSON format defined by the output parser."
+        }
+      },
+      "id": "367fc1d0-4421-4b39-9b2e-97a9322160dc",
+      "name": "Cost Optimization Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -1840,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "workflow_type",
+              "value": "formulation_approval",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "request_id",
+              "value": "={{ $json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "formula_data",
+              "value": "={{ { formulas: $json.formulas, recommended_formula_id: $json.recommended_formula_id } }}",
+              "type": "object"
+            },
+            {
+              "id": "id-4",
+              "name": "safety_results",
+              "value": "={{ { status: $json.safety_status, issues: $json.safety_issues } }}",
+              "type": "object"
+            },
+            {
+              "id": "id-5",
+              "name": "compliance_results",
+              "value": "={{ { compliant: $json.compliant, violations: $json.violations } }}",
+              "type": "object"
+            },
+            {
+              "id": "id-6",
+              "name": "cost_data",
+              "value": "={{ { estimated_unit_cost: $json.estimated_unit_cost, cost_reduction_options: $json.cost_reduction_options } }}",
+              "type": "object"
+            },
+            {
+              "id": "id-7",
+              "name": "mode",
+              "value": "={{ $json.mode || $(\"Workflow Configuration\").first().json.default_mode }}",
+              "type": "string"
+            },
+            {
+              "id": "id-8",
+              "name": "confidence",
+              "value": "={{ $('Execute Workflow Trigger').item.json.confidence }}",
+              "type": "string"
+            },
+            {
+              "id": "id-9",
+              "name": "risk_level",
+              "value": "={{ $('Execute Workflow Trigger').item.json.risk_level }}",
+              "type": "string"
+            },
+            {
+              "id": "id-10",
+              "name": "audit",
+              "value": "={{ $('Execute Workflow Trigger').item.json.audit }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "7a7aac63-c269-4986-9ef9-c930f480ba7c",
+      "name": "Prepare CREA Request",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1488,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "q1UDzKI9hUOR816f",
+          "mode": "id",
+          "cachedResultName": "q1UDzKI9hUOR816f"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_type": "={{ $('Prepare CREA Request').item.json.workflow_type }}",
+            "request_id": "={{ $('Prepare CREA Request').item.json.request_id }}",
+            "formula_data": "={{ $('Prepare CREA Request').item.json.formula_data }}",
+            "safety_results": "={{ $('Prepare CREA Request').item.json.safety_results }}",
+            "compliance_results": "={{ $('Prepare CREA Request').item.json.compliance_results }}",
+            "cost_data": "={{ $('Prepare CREA Request').item.json.cost_data }}",
+            "mode": "={{ $('Prepare CREA Request').item.json.mode }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "ee476665-c1cd-4925-a7fc-6b82038b55ab",
+      "name": "Call CREA Approval (WF-8)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -592,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=CREA Approved Formula Data: {{ JSON.stringify($json) }}\nRequest ID: {{ $json.request_id }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "CRITICAL RULE: You MUST verify that crea_approved is true AND mode is 'execute' before approving any formula. If either condition fails, you MUST set approved to false and explain the blocking reason. Never approve in simulation mode or without CREA approval.\n\nYou are the AFA (AI Formulation Architect) Final Approval Agent, the ultimate decision maker for formulation approval.\n\nYour task is to:\n1. Review all previous assessments (ingredients, formulas, lab, stability, safety, compliance, cost, CREA approval)\n2. Confirm scientific soundness and brand fit\n3. Assess readiness for operations and marketing\n4. Make final approval decision: approved (true/false)\n5. Select the final formula ID to proceed with\n6. Provide notes explaining your decision\n\nReturn your final approval in the structured JSON format defined by the output parser."
+        }
+      },
+      "id": "e13b2bfc-8ba7-4bb8-ad13-d2c7ea083eec",
+      "name": "AFA Final Approval Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1424,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "notification_type",
+              "value": "formulation_complete",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "request_id",
+              "value": "={{ $json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "final_formula_id",
+              "value": "={{ $json.final_formula_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "operations_ready",
+              "value": "={{ $json.readiness_assessment.operations_ready }}",
+              "type": "boolean"
+            },
+            {
+              "id": "id-5",
+              "name": "manufacturability_data",
+              "value": "={{ JSON.stringify({ lab_results: $json.lab_results, stability_score: $json.stability_score }) }}",
+              "type": "object"
+            },
+            {
+              "id": "id-6",
+              "name": "mode",
+              "value": "={{ $json.mode || \"simulation\" }}",
+              "type": "string"
+            },
+            {
+              "id": "id-7",
+              "name": "confidence",
+              "value": "={{ $('Execute Workflow Trigger').item.json.confidence }}",
+              "type": "string"
+            },
+            {
+              "id": "id-8",
+              "name": "risk_level",
+              "value": "={{ $('Execute Workflow Trigger').item.json.risk_level }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "26ca5a5b-f468-4b44-aabb-5ed50d0594bc",
+      "name": "Prepare COO Notification",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1776,
+        0
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "notification_type",
+              "value": "formulation_complete",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "request_id",
+              "value": "={{ $json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "final_formula_id",
+              "value": "={{ $json.final_formula_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "marketing_ready",
+              "value": "={{ $json.readiness_assessment.marketing_ready }}",
+              "type": "boolean"
+            },
+            {
+              "id": "id-5",
+              "name": "claims_data",
+              "value": "={{ JSON.stringify({ intended_benefits: $json.formulas.find(f => f.id === $json.final_formula_id)?.intended_benefits, compliance_status: $json.compliant }) }}",
+              "type": "object"
+            },
+            {
+              "id": "id-6",
+              "name": "mode",
+              "value": "={{ $json.mode || \"simulation\" }}",
+              "type": "string"
+            },
+            {
+              "id": "id-7",
+              "name": "confidence",
+              "value": "={{ $('Execute Workflow Trigger').item.json.confidence }}",
+              "type": "string"
+            },
+            {
+              "id": "id-8",
+              "name": "risk_level",
+              "value": "={{ $('Execute Workflow Trigger').item.json.risk_level }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d0880bb3-9395-4185-9ba1-ababdc694ced",
+      "name": "Prepare CMO Notification",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1776,
+        192
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "tQ9crXF3P0NOlWDy",
+          "mode": "id",
+          "cachedResultName": "tQ9crXF3P0NOlWDy"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "notification_type": "={{ $('Prepare COO Notification').item.json.notification_type }}",
+            "request_id": "={{ $('Prepare COO Notification').item.json.request_id }}",
+            "final_formula_id": "={{ $('Prepare COO Notification').item.json.final_formula_id }}",
+            "operations_ready": "={{ $('Prepare COO Notification').item.json.operations_ready }}",
+            "manufacturability_data": "={{ $('Prepare COO Notification').item.json.manufacturability_data }}",
+            "mode": "={{ $('Prepare COO Notification').item.json.mode }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "9326c500-7853-4b46-8d31-c19b430f6b47",
+      "name": "Notify COO (WF-3)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        2000,
+        0
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "IYl2NVikGCyySSU2",
+          "mode": "id",
+          "cachedResultName": "IYl2NVikGCyySSU2"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "notification_type": "={{ $('Prepare CMO Notification').item.json.notification_type }}",
+            "request_id": "={{ $('Prepare CMO Notification').item.json.request_id }}",
+            "final_formula_id": "={{ $('Prepare CMO Notification').item.json.final_formula_id }}",
+            "marketing_ready": "={{ $('Prepare CMO Notification').item.json.marketing_ready }}",
+            "claims_data": "={{ $('Prepare CMO Notification').item.json.claims_data }}",
+            "mode": "={{ $('Prepare CMO Notification').item.json.mode }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "fc6a627a-4d25-4040-83c9-288f40e86138",
+      "name": "Notify CMO (WF-5)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        2000,
+        192
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "6e9ca5a6-0e84-47aa-9296-22b3d3ece947",
+      "name": "Merge Notifications",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2224,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "07581b09-1c72-4658-97ac-79b861e94b41",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -5064,
+        320
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"ingredients\": {\n\t\t\t\"type\": \"array\",\n\t\t\t\"items\": {\n\t\t\t\t\"type\": \"object\",\n\t\t\t\t\"properties\": {\n\t\t\t\t\t\"name\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t},\n\t\t\t\t\t\"functional_role\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t},\n\t\t\t\t\t\"concentration_range\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t},\n\t\t\"known_risks\": {\n\t\t\t\"type\": \"array\",\n\t\t\t\"items\": {\n\t\t\t\t\"type\": \"string\"\n\t\t\t}\n\t\t},\n\t\t\"restricted_regions\": {\n\t\t\t\"type\": \"array\",\n\t\t\t\"items\": {\n\t\t\t\t\"type\": \"string\"\n\t\t\t}\n\t\t}\n\t}\n}"
+      },
+      "id": "94ec7181-e7da-43f6-b302-09d1137bb6e2",
+      "name": "Ingredient Discovery Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -4936,
+        320
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"formulas\": {\n\t\t\t\"type\": \"array\",\n\t\t\t\"items\": {\n\t\t\t\t\"type\": \"object\",\n\t\t\t\t\"properties\": {\n\t\t\t\t\t\"id\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t},\n\t\t\t\t\t\"composition\": {\n\t\t\t\t\t\t\"type\": \"object\",\n\t\t\t\t\t\t\"additionalProperties\": {\n\t\t\t\t\t\t\t\"type\": \"number\"\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\t\t\t\t\t\"intended_benefits\": {\n\t\t\t\t\t\t\"type\": \"array\",\n\t\t\t\t\t\t\"items\": {\n\t\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n}"
+      },
+      "id": "b25237a8-2701-4385-ad73-f2c507f72e0c",
+      "name": "Formula Suggestions Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -4648,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"lab_results\": {\n\t\t\t\"type\": \"array\",\n\t\t\t\"items\": {\n\t\t\t\t\"type\": \"object\",\n\t\t\t\t\"properties\": {\n\t\t\t\t\t\"formula_id\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t},\n\t\t\t\t\t\"compatibility_score\": {\n\t\t\t\t\t\t\"type\": \"number\"\n\t\t\t\t\t},\n\t\t\t\t\t\"manufacturability_score\": {\n\t\t\t\t\t\t\"type\": \"number\"\n\t\t\t\t\t},\n\t\t\t\t\t\"issues\": {\n\t\t\t\t\t\t\"type\": \"array\",\n\t\t\t\t\t\t\"items\": {\n\t\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t},\n\t\t\"failed_formulas\": {\n\t\t\t\"type\": \"array\",\n\t\t\t\"items\": {\n\t\t\t\t\"type\": \"string\"\n\t\t\t}\n\t\t}\n\t}\n}"
+      },
+      "id": "39804db9-81f1-409b-964d-82468b0acf2b",
+      "name": "Lab Simulation Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -4296,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"stability_score\": {\n      \"type\": \"object\",\n      \"description\": \"Formula IDs as keys with stability scores (0-100) as values\",\n      \"additionalProperties\": {\n        \"type\": \"number\",\n        \"minimum\": 0,\n        \"maximum\": 100\n      }\n    },\n    \"unstable_formulas\": {\n      \"type\": \"array\",\n      \"description\": \"Array of formula IDs that are unstable\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"degradation_risks\": {\n      \"type\": \"object\",\n      \"description\": \"Formula IDs as keys with arrays of degradation risks as values\",\n      \"additionalProperties\": {\n        \"type\": \"array\",\n        \"items\": {\n          \"type\": \"string\"\n        }\n      }\n    }\n  }\n}"
+      },
+      "id": "38832c23-42e0-491a-b9f6-cf29ebf2ed3b",
+      "name": "Stability Simulation Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -3944,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"safety_status\": {\n\t\t\t\"type\": \"string\",\n\t\t\t\"enum\": [\"pass\", \"fail\"]\n\t\t},\n\t\t\"safety_issues\": {\n\t\t\t\"type\": \"array\",\n\t\t\t\"items\": {\n\t\t\t\t\"type\": \"object\",\n\t\t\t\t\"properties\": {\n\t\t\t\t\t\"formula_id\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t},\n\t\t\t\t\t\"issue_type\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t},\n\t\t\t\t\t\"severity\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t},\n\t\t\t\t\t\"description\": {\n\t\t\t\t\t\t\"type\": \"string\"\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t},\n\t\t\"safe_formulas\": {\n\t\t\t\"type\": \"array\",\n\t\t\t\"items\": {\n\t\t\t\t\"type\": \"string\"\n\t\t\t}\n\t\t}\n\t}\n}"
+      },
+      "id": "1bd60962-c5e0-44d7-b4d6-48db406483fc",
+      "name": "Safety Assessment Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -3592,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"compliant\": {\n\t\t\t\"type\": \"boolean\",\n\t\t\t\"description\": \"Overall compliance status\"\n\t\t},\n\t\t\"violations\": {\n\t\t\t\"type\": \"array\",\n\t\t\t\"items\": {\n\t\t\t\t\"type\": \"object\",\n\t\t\t\t\"properties\": {\n\t\t\t\t\t\"formula_id\": {\n\t\t\t\t\t\t\"type\": \"string\",\n\t\t\t\t\t\t\"description\": \"Formula identifier\"\n\t\t\t\t\t},\n\t\t\t\t\t\"regulation\": {\n\t\t\t\t\t\t\"type\": \"string\",\n\t\t\t\t\t\t\"description\": \"Regulation that was violated\"\n\t\t\t\t\t},\n\t\t\t\t\t\"violation_type\": {\n\t\t\t\t\t\t\"type\": \"string\",\n\t\t\t\t\t\t\"description\": \"Type of violation\"\n\t\t\t\t\t},\n\t\t\t\t\t\"description\": {\n\t\t\t\t\t\t\"type\": \"string\",\n\t\t\t\t\t\t\"description\": \"Description of the violation\"\n\t\t\t\t\t}\n\t\t\t\t},\n\t\t\t\t\"required\": [\"formula_id\", \"regulation\", \"violation_type\", \"description\"]\n\t\t\t},\n\t\t\t\"description\": \"List of compliance violations\"\n\t\t},\n\t\t\"compliant_formulas\": {\n\t\t\t\"type\": \"array\",\n\t\t\t\"items\": {\n\t\t\t\t\"type\": \"string\"\n\t\t\t},\n\t\t\t\"description\": \"Array of compliant formula IDs\"\n\t\t}\n\t},\n\t\"required\": [\"compliant\", \"violations\", \"compliant_formulas\"]\n}"
+      },
+      "id": "0445106d-8561-4414-820d-dccd218d9c04",
+      "name": "Compliance Check Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -2568,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"optimized_cost\":{\"type\":\"number\"},\"cost_reduction_percent\":{\"type\":\"number\"},\"recommendations\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"approved\":{\"type\":\"boolean\"},\"notes\":{\"type\":\"string\"}},\"required\":[\"optimized_cost\",\"approved\"]}"
+      },
+      "id": "18f1369b-649f-451c-8ee7-3b2239dc2183",
+      "name": "Cost Optimization Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1768,
+        320
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"approved\": {\n\t\t\t\"type\": \"boolean\",\n\t\t\t\"description\": \"Final approval decision\"\n\t\t},\n\t\t\"final_formula_id\": {\n\t\t\t\"type\": \"string\",\n\t\t\t\"description\": \"ID of the final approved formula\"\n\t\t},\n\t\t\"decision_summary\": {\n\t\t\t\"type\": \"string\",\n\t\t\t\"description\": \"Summary of the approval decision\"\n\t\t},\n\t\t\"approval_notes\": {\n\t\t\t\"type\": \"array\",\n\t\t\t\"items\": {\n\t\t\t\t\"type\": \"string\"\n\t\t\t},\n\t\t\t\"description\": \"Notes explaining the approval decision\"\n\t\t},\n\t\t\"readiness_assessment\": {\n\t\t\t\"type\": \"object\",\n\t\t\t\"properties\": {\n\t\t\t\t\"operations_ready\": {\n\t\t\t\t\t\"type\": \"boolean\",\n\t\t\t\t\t\"description\": \"Whether the formula is ready for operations\"\n\t\t\t\t},\n\t\t\t\t\"marketing_ready\": {\n\t\t\t\t\t\"type\": \"boolean\",\n\t\t\t\t\t\"description\": \"Whether the formula is ready for marketing\"\n\t\t\t\t}\n\t\t\t},\n\t\t\t\"required\": [\"operations_ready\", \"marketing_ready\"],\n\t\t\t\"description\": \"Readiness assessment for operations and marketing\"\n\t\t},\n\t\t\"blocking_reason\": {\n\t\t\t\"type\": \"string\",\n\t\t\t\"description\": \"Reason for blocking approval if not approved\"\n\t\t}\n\t},\n\t\"required\": [\"approved\", \"final_formula_id\", \"decision_summary\", \"approval_notes\", \"readiness_assessment\"]\n}"
+      },
+      "id": "d4312e34-4869-4b24-a780-257f7d323d07",
+      "name": "AFA Final Approval Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1496,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter Valid Formulas for Cost Optimization\n// Only pass formulas that passed all previous checks\n\nconst items = $input.all();\nconst inputData = items[0].json;\n\n// Get all formulas\nconst allFormulas = inputData.formulas || [];\n\n// Get failed formulas from Lab Simulation\nconst labSimulation = $('Lab Simulation Agent').first().json;\nconst failedFormulas = labSimulation.failed_formulas || [];\n\n// Get unstable formulas from Stability Simulation\nconst stabilitySimulation = $('Stability Simulation Agent').first().json;\nconst unstableFormulas = stabilitySimulation.unstable_formulas || [];\n\n// Get safe formulas from Safety Assessment\nconst safetyAssessment = $('Safety Assessment Agent').first().json;\nconst safeFormulas = safetyAssessment.safe_formulas || [];\n\n// Get compliant formulas from Compliance Check (if available)\n// Note: This node runs BEFORE Compliance Check, so we'll prepare for it\n// We'll filter based on lab, stability, and safety for now\n\n// Filter formulas that passed all checks\nconst validFormulas = allFormulas.filter(formula => {\n  const formulaId = formula.id;\n  \n  // Must NOT be in failed formulas\n  const notFailed = !failedFormulas.includes(formulaId);\n  \n  // Must NOT be in unstable formulas\n  const notUnstable = !unstableFormulas.includes(formulaId);\n  \n  // Must be in safe formulas\n  const isSafe = safeFormulas.includes(formulaId);\n  \n  return notFailed && notUnstable && isSafe;\n});\n\n// Return all input data with valid_formulas field\nreturn [{\n  json: {\n    ...inputData,\n    valid_formulas: validFormulas,\n    validation_summary: {\n      total_formulas: allFormulas.length,\n      failed_lab: failedFormulas.length,\n      failed_stability: unstableFormulas.length,\n      passed_safety: safeFormulas.length,\n      valid_for_compliance: validFormulas.length\n    }\n  }\n}];"
+      },
+      "id": "a6021d43-c50b-41bb-8383-a562a72cb267",
+      "name": "Filter Valid Formulas for Cost Optimization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2864,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "crea_approved",
+              "value": "={{ $('Call CREA Approval (WF-8)').item.json.approved }}",
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "crea_feedback",
+              "value": "={{ $json.feedback || $json.crea_feedback || 'CREA approved' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "approved_formulas",
+              "value": "={{ JSON.stringify($json.formula_data || $json.formulas) }}",
+              "type": "object"
+            },
+            {
+              "id": "id-4",
+              "name": "crea_decision",
+              "value": "={{ $('Call CREA Approval (WF-8)').item.json.decision || 'approved' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "confidence",
+              "value": "={{ $('Execute Workflow Trigger').item.json.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "id-6",
+              "name": "risk_level",
+              "value": "={{ $('Execute Workflow Trigger').item.json.risk_level }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "c9e4197f-c232-4a53-9cbc-ac4286912572",
+      "name": "Prepare AFA Context with CREA Approval",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Universal Contract Validation\n// Validates the universal contract structure for all incoming requests\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  let isValid = true;\n  let errorMessage = '';\n  const missingFields = [];\n  \n  // Check for required universal contract fields\n  const requiredFields = ['request_id', 'mode', 'confidence', 'risk_level', 'payload'];\n  \n  for (const field of requiredFields) {\n    if (data[field] === undefined || data[field] === null) {\n      missingFields.push(field);\n      isValid = false;\n    }\n  }\n  \n  // Validate audit metadata if present\n  if (data.audit_metadata) {\n    if (typeof data.audit_metadata !== 'object') {\n      isValid = false;\n      errorMessage = 'audit_metadata must be an object';\n    }\n  }\n  \n  // Validate mode value\n  if (data.mode && !['simulation', 'production', 'test'].includes(data.mode)) {\n    isValid = false;\n    if (errorMessage) errorMessage += '; ';\n    errorMessage += 'mode must be one of: simulation, production, test';\n  }\n  \n  // Validate confidence value\n  if (data.confidence !== undefined && (typeof data.confidence !== 'number' || data.confidence < 0 || data.confidence > 100)) {\n    isValid = false;\n    if (errorMessage) errorMessage += '; ';\n    errorMessage += 'confidence must be a number between 0 and 100';\n  }\n  \n  // Validate risk_level value\n  if (data.risk_level && !['low', 'medium', 'high', 'critical'].includes(data.risk_level)) {\n    isValid = false;\n    if (errorMessage) errorMessage += '; ';\n    errorMessage += 'risk_level must be one of: low, medium, high, critical';\n  }\n  \n  // Validate payload exists and is an object\n  if (data.payload && typeof data.payload !== 'object') {\n    isValid = false;\n    if (errorMessage) errorMessage += '; ';\n    errorMessage += 'payload must be an object';\n  }\n  \n  if (missingFields.length > 0) {\n    if (errorMessage) errorMessage += '; ';\n    errorMessage += `Missing required universal contract fields: ${missingFields.join(', ')}`;\n  }\n  \n  // Return validation result\n  results.push({\n    json: {\n      ...data,\n      universal_contract_validation: {\n        isValid: isValid,\n        errorMessage: errorMessage || null,\n        validated_at: new Date().toISOString()\n      }\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "aa769fd0-f252-430e-8e47-92b9816b8c32",
+      "name": "Universal Contract Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6640,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Universal Contract Validation').item.json.universal_contract_validation.isValid }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3cc16c63-e027-49b1-a83f-f993fcc51717",
+      "name": "Check Universal Contract Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -6416,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Execute Workflow Trigger').item.json.mode }}",
+              "rightValue": "execute",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dfa036da-0685-4f61-986b-998c6bbe880d",
+      "name": "Formulation Approval Guard - Check Mode",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        976,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "simulation_only",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "formulation_status",
+              "value": "NOT APPROVED",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "decision_summary",
+              "value": "Simulation mode – formulation NOT approved",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "mode",
+              "value": "={{ $('Execute Workflow Trigger').item.json.mode }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "request_id",
+              "value": "={{ $('Execute Workflow Trigger').item.json.request_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3cf01d73-76fe-4652-8f23-a224cc3596e8",
+      "name": "Block Approval - Simulation Mode",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1200,
+        168
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// System Confidence Recheck\n// Check if confidence from WF-0 is sufficient for proceeding\n\nconst items = $input.all();\nconst inputData = items[0].json;\n\n// Get confidence and risk_level from WF-0 (assumed to be in input data)\nconst confidence = inputData.confidence || inputData.system_confidence || 1.0;\nconst riskLevel = inputData.risk_level || inputData.riskLevel || 'low';\n\n// Check if confidence is sufficient\n// Insufficient if: confidence < 0.9 AND risk_level is NOT 'low'\nconst confidenceSufficient = !(confidence < 0.9 && riskLevel !== 'low');\n\nlet reason = null;\nif (!confidenceSufficient) {\n  reason = `Confidence level ${confidence} is below threshold (0.9) and risk level is ${riskLevel} (not low). Manual review required.`;\n}\n\nreturn [{\n  json: {\n    ...inputData,\n    confidence_check: {\n      confidence_sufficient: confidenceSufficient,\n      confidence: confidence,\n      risk_level: riskLevel,\n      reason: reason,\n      threshold: 0.9,\n      checked_at: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "id": "8273dd39-465f-4b63-a9fe-1ca6589bff7f",
+      "name": "System Confidence Recheck",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1264,
+        168
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('System Confidence Recheck').item.json.confidence_sufficient }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "80475f7a-163c-4e28-b388-fd51351892a1",
+      "name": "Check Confidence Sufficient",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1040,
+        168
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "paused",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "formulation_status",
+              "value": "PENDING",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "human_approval_required",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-4",
+              "name": "reason",
+              "value": "Insufficient system confidence for formulation approval",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "confidence",
+              "value": "={{ $('Execute Workflow Trigger').item.json.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "id-6",
+              "name": "risk_level",
+              "value": "={{ $('Execute Workflow Trigger').item.json.risk_level }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c04d1d42-9470-4732-ae65-30795d996294",
+      "name": "Pause - Low Confidence",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -816,
+        240
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compute Compliance State based on Compliance Check Agent results\nconst items = $input.all();\nconst inputData = items[0].json;\n\n// Get compliance results from Compliance Check Agent\nconst complianceCheck = $('Compliance Check Agent').first().json;\nconst isCompliant = complianceCheck.compliant;\n\n// Determine compliance state\nlet complianceState;\nif (isCompliant === true) {\n  complianceState = 'compliant';\n} else if (isCompliant === false) {\n  complianceState = 'non_compliant';\n} else {\n  // If compliant is undefined or null, requires review\n  complianceState = 'requires_review';\n}\n\n// Return all input data with computed compliance_state field\nreturn [{\n  json: {\n    ...inputData,\n    compliance_state: complianceState,\n    compliance_details: {\n      compliant: isCompliant,\n      violations: complianceCheck.violations || [],\n      compliant_formulas: complianceCheck.compliant_formulas || []\n    }\n  }\n}];"
+      },
+      "id": "ebd00406-961d-4df6-b869-c2456f7c784e",
+      "name": "Compute Compliance State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Compute Compliance State').item.json.compliance_state }}",
+              "rightValue": "compliant",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7b94cd23-7326-44ee-824c-1bb2cc32c91f",
+      "name": "Check Compliance State",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        304,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Call CREA Approval (WF-8)').item.json.approved }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e9959e3c-e128-49a9-b076-b4219384cdb2",
+      "name": "CREA Approval Gate - Non-Bypassable",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -368,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Final Output Sanitization & Normalization\n// DROP all internal R&D fields\n// REBUILD output with ONLY specified fields\n\nconst items = $input.all();\nconst inputData = items[0].json;\n\n// Extract key data from workflow execution\nconst requestId = inputData.request_id || $('Execute Workflow Trigger').first().json.request_id || 'unknown';\nconst afaApproval = $('AFA Final Approval Agent').first().json;\nconst creaApproval = $('Call CREA Approval (WF-8)').first().json;\nconst complianceCheck = $('Compliance Check Agent').first().json;\nconst safetyAssessment = $('Safety Assessment Agent').first().json;\n\n// Determine formulation status\nlet formulationStatus = 'approved';\nlet decisionSummary = 'Formulation approved and ready for operations';\n\nif (!afaApproval.approved) {\n  formulationStatus = 'rejected';\n  decisionSummary = afaApproval.notes || 'AFA rejected the formulation';\n} else if (!creaApproval.crea_approved) {\n  formulationStatus = 'rejected';\n  decisionSummary = 'CREA rejected the formulation';\n} else if (!complianceCheck.compliant) {\n  formulationStatus = 'rejected';\n  decisionSummary = 'Compliance check failed';\n} else if (safetyAssessment.safety_status === 'fail') {\n  formulationStatus = 'rejected';\n  decisionSummary = 'Safety assessment failed';\n}\n\n// Determine compliance state\nconst complianceState = complianceCheck.compliant ? 'compliant' : 'non-compliant';\n\n// Build approvals array\nconst approvals = [\n  {\n    approver: 'CREA',\n    status: creaApproval.crea_approved ? 'approved' : 'rejected',\n    timestamp: new Date().toISOString()\n  },\n  {\n    approver: 'AFA',\n    status: afaApproval.approved ? 'approved' : 'rejected',\n    timestamp: new Date().toISOString()\n  }\n];\n\n// Determine next allowed actions\nconst nextAllowedActions = [];\nif (formulationStatus === 'approved') {\n  nextAllowedActions.push('proceed_to_manufacturing');\n  nextAllowedActions.push('notify_stakeholders');\n  nextAllowedActions.push('generate_documentation');\n} else {\n  nextAllowedActions.push('revise_formulation');\n  nextAllowedActions.push('request_reapproval');\n}\n\n// Build audit object\nconst audit = {\n  timestamp: new Date().toISOString(),\n  performed_by: 'WF-4',\n  notes: [\n    `Formulation ${formulationStatus}`,\n    `CREA review: ${creaApproval.crea_approved ? 'approved' : 'rejected'}`,\n    `AFA review: ${afaApproval.approved ? 'approved' : 'rejected'}`,\n    `Compliance: ${complianceState}`,\n    `Safety: ${safetyAssessment.safety_status}`\n  ]\n};\n\n// Return single normalized object with ONLY specified fields\nreturn [{\n  json: {\n    workflow_id: 'WF-4',\n    request_id: requestId,\n    status: formulationStatus === 'approved' ? 'success' : 'rejected',\n    formulation_status: formulationStatus,\n    decision_summary: decisionSummary,\n    confidence: $('Execute Workflow Trigger').item.json.confidence,\n    risk_level: inputData.risk_level || 'medium',\n    compliance_state: complianceState,\n    crea_reviewed: true,\n    approvals: approvals,\n    next_allowed_actions: nextAllowedActions,\n    audit: audit\n  }\n}];"
+      },
+      "id": "52fbc44d-697d-465d-8246-59615d861dad",
+      "name": "Final Output Sanitization & Normalization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2672,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate Immutable Audit Record\nconst items = $input.all();\nconst inputData = items[0].json;\n\n// Extract data from previous nodes\nconst workflowConfig = $('Workflow Configuration').first().json;\nconst confidenceCheck = $('System Confidence Recheck').first().json;\nconst complianceState = $('Compute Compliance State').first().json;\nconst creaApproval = $('Call CREA Approval (WF-8)').first().json;\nconst afaApproval = $('AFA Final Approval Agent').first().json;\n\n// Determine approval status and reason\nlet approvalStatus = 'unknown';\nlet approvalReason = '';\nlet blockReason = '';\n\nif (afaApproval && afaApproval.approved === true) {\n  approvalStatus = 'approved';\n  approvalReason = afaApproval.notes || afaApproval.approval_reason || 'AFA approved formulation';\n} else if (afaApproval && afaApproval.approved === false) {\n  approvalStatus = 'blocked';\n  blockReason = afaApproval.notes || afaApproval.rejection_reason || 'AFA rejected formulation';\n} else {\n  approvalStatus = 'pending';\n}\n\n// Build audit record\nconst auditRecord = {\n  audit_id: `AUDIT-${inputData.request_id || $execution.id}-${Date.now()}`,\n  request_id: inputData.request_id || $execution.id,\n  mode: inputData.mode || workflowConfig.default_mode || 'simulation',\n  confidence: confidenceCheck?.confidence_score || confidenceCheck?.overall_confidence || 0,\n  risk_level: confidenceCheck?.risk_level || complianceState?.risk_level || 'unknown',\n  compliance_state: complianceState?.compliance_state || complianceState?.status || 'unknown',\n  crea_decision: {\n    approved: creaApproval?.approved || creaApproval?.crea_approved || false,\n    feedback: creaApproval?.feedback || creaApproval?.crea_feedback || 'No feedback provided',\n    timestamp: creaApproval?.timestamp || new Date().toISOString()\n  },\n  afa_decision: {\n    status: approvalStatus,\n    approval_reason: approvalReason,\n    block_reason: blockReason,\n    final_formula_id: afaApproval?.final_formula_id || null,\n    timestamp: new Date().toISOString()\n  },\n  workflow_execution_id: $execution.id,\n  timestamp: new Date().toISOString(),\n  immutable: true\n};\n\nreturn [{\n  json: {\n    ...inputData,\n    audit_record: auditRecord\n  }\n}];"
+      },
+      "id": "acf924f8-5df9-4a39-8f40-9da80e5eb3ca",
+      "name": "Generate Audit Record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2448,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst inputData = items[0]?.json || {};\n\nconst validationData = inputData.universal_contract_validation || {};\nconst validationError = validationData.errorMessage || 'Invalid or incomplete universal contract';\nconst requestId = inputData.request_id || $execution.id;\n\nreturn [\n  {\n    json: {\n      status: 'rejected',\n      formulation_status: 'NOT APPROVED',\n      blocked_by: 'Universal Contract Validation',\n      reason: 'Invalid or incomplete universal contract - WF-4 rejected execution',\n      validation_error: validationError,\n      request_id: requestId,\n      mode: inputData.mode || 'unknown',\n      confidence: inputData.confidence || 0,\n      risk_level: inputData.risk_level || 'unknown',\n      timestamp: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "id": "a4bc6ec6-5a61-4adc-8257-7ec8383dad27",
+      "name": "Return Error - Invalid Universal Contract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6192,
+        168
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst inputData = items[0]?.json || {};\n\nconst creaApproval = $('Call CREA Approval (WF-8)').first().json;\n\nreturn [\n  {\n    json: {\n      status: 'blocked',\n      formulation_status: 'NOT APPROVED',\n      blocked_by: 'CREA',\n      crea_reviewed: true,\n      crea_decision: 'rejected',\n      reason: creaApproval?.feedback || creaApproval?.crea_feedback || 'CREA blocked formulation approval - non-bypassable gate',\n      request_id: inputData.request_id || $('Execute Workflow Trigger').item.json.request_id || 'unknown',\n      mode: inputData.mode || 'simulation',\n      confidence: inputData.confidence || 0,\n      risk_level: inputData.risk_level || 'high',\n      timestamp: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "id": "c28397d5-e859-4a9e-bddd-7571e33e2337",
+      "name": "Return Error - CREA Blocked",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        168
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst inputData = items[0]?.json || {};\n\nconst complianceCheck = $('Compliance Check Agent').first().json;\n\nreturn [\n  {\n    json: {\n      status: 'blocked',\n      formulation_status: 'NOT APPROVED',\n      blocked_by: 'Compliance Check',\n      reason: 'Non-compliant formulation - approval blocked',\n      violations: complianceCheck?.violations || inputData.violations || [],\n      request_id: inputData.request_id || $('Execute Workflow Trigger').item.json.request_id || 'unknown',\n      mode: inputData.mode || 'simulation',\n      confidence: inputData.confidence || 0,\n      risk_level: inputData.risk_level || 'high',\n      compliance_state: 'non_compliant',\n      timestamp: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "id": "6824c4a9-7616-43bc-96f6-a106d10302c3",
+      "name": "Return Error - Non-Compliant Formulation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        168
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Validate Input Schema": {
+      "main": [
+        [
+          {
+            "node": "Check Input Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Input Valid": {
+      "main": [
+        [
+          {
+            "node": "Ingredient Discovery Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Error - Invalid Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingredient Discovery Agent": {
+      "main": [
+        [
+          {
+            "node": "Formula Suggestions Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formula Suggestions Agent": {
+      "main": [
+        [
+          {
+            "node": "Lab Simulation Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lab Simulation Agent": {
+      "main": [
+        [
+          {
+            "node": "Stability Simulation Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stability Simulation Agent": {
+      "main": [
+        [
+          {
+            "node": "Safety Assessment Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Safety Assessment Agent": {
+      "main": [
+        [
+          {
+            "node": "Check Safety Pass",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Safety Pass": {
+      "main": [
+        [
+          {
+            "node": "Filter Valid Formulas for Cost Optimization",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Error - Safety Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance Check Agent": {
+      "main": [
+        [
+          {
+            "node": "Check Compliance Pass",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Compliance Pass": {
+      "main": [
+        [
+          {
+            "node": "Cost Optimization Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Error - Compliance Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cost Optimization Agent": {
+      "main": [
+        [
+          {
+            "node": "Prepare CREA Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare CREA Request": {
+      "main": [
+        [
+          {
+            "node": "Call CREA Approval (WF-8)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "System Confidence Recheck",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare COO Notification": {
+      "main": [
+        [
+          {
+            "node": "Notify COO (WF-3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare CMO Notification": {
+      "main": [
+        [
+          {
+            "node": "Notify CMO (WF-5)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify COO (WF-3)": {
+      "main": [
+        [
+          {
+            "node": "Merge Notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify CMO (WF-5)": {
+      "main": [
+        [
+          {
+            "node": "Merge Notifications",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Ingredient Discovery Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Formula Suggestions Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Lab Simulation Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Stability Simulation Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Safety Assessment Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Compliance Check Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Cost Optimization Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AFA Final Approval Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingredient Discovery Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Ingredient Discovery Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formula Suggestions Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Formula Suggestions Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lab Simulation Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Lab Simulation Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stability Simulation Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Stability Simulation Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Safety Assessment Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Safety Assessment Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance Check Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Compliance Check Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cost Optimization Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Cost Optimization Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AFA Final Approval Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AFA Final Approval Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Valid Formulas for Cost Optimization": {
+      "main": [
+        [
+          {
+            "node": "Compliance Check Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Universal Contract Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Universal Contract Validation": {
+      "main": [
+        [
+          {
+            "node": "Check Universal Contract Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Universal Contract Valid": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Error - Invalid Universal Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Validate Input Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "System Confidence Recheck": {
+      "main": [
+        [
+          {
+            "node": "Check Confidence Sufficient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Confidence Sufficient": {
+      "main": [
+        [
+          {
+            "node": "Call CREA Approval (WF-8)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pause - Low Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call CREA Approval (WF-8)": {
+      "main": [
+        [
+          {
+            "node": "CREA Approval Gate - Non-Bypassable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREA Approval Gate - Non-Bypassable": {
+      "main": [
+        [
+          {
+            "node": "Compute Compliance State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Error - CREA Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Compliance State": {
+      "main": [
+        [
+          {
+            "node": "Check Compliance State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Compliance State": {
+      "main": [
+        [
+          {
+            "node": "Prepare AFA Context with CREA Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Error - Non-Compliant Formulation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AFA Context with CREA Approval": {
+      "main": [
+        [
+          {
+            "node": "Formulation Approval Guard - Check Mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formulation Approval Guard - Check Mode": {
+      "main": [
+        [
+          {
+            "node": "AFA Final Approval Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Block Approval - Simulation Mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AFA Final Approval Agent": {
+      "main": [
+        [
+          {
+            "node": "Prepare COO Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare CMO Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Notifications": {
+      "main": [
+        [
+          {
+            "node": "Generate Audit Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Audit Record": {
+      "main": [
+        [
+          {
+            "node": "Final Output Sanitization & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return Error - Invalid Universal Contract": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return Error - Invalid Input": {
+      "main": [
+        [
+          {
+            "node": "Ingredient Discovery Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return Error - Safety Failed": {
+      "main": [
+        [
+          {
+            "node": "Filter Valid Formulas for Cost Optimization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return Error - Compliance Failed": {
+      "main": [
+        [
+          {
+            "node": "Cost Optimization Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pause - Low Confidence": {
+      "main": [
+        [
+          {
+            "node": "Call CREA Approval (WF-8)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return Error - CREA Blocked": {
+      "main": [
+        [
+          {
+            "node": "Compute Compliance State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return Error - Non-Compliant Formulation": {
+      "main": [
+        [
+          {
+            "node": "Prepare AFA Context with CREA Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Approval - Simulation Mode": {
+      "main": [
+        [
+          {
+            "node": "AFA Final Approval Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "74302368-03e3-4e92-8b62-258925c9751e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2f76907fbed960a398910145b73fdcdcdaeab5424a9d76499bbf1f155042f8f0"
+  },
+  "id": "wruDXEwcbxlP2D7x",
+  "tags": []
+}

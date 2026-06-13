@@ -1,0 +1,2621 @@
+{
+  "name": "WF: 2- Finance Decision, Risk & Cost Control for CFO Operations",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "request_id"
+            },
+            {
+              "name": "mode"
+            },
+            {
+              "name": "confidence",
+              "type": "number"
+            },
+            {
+              "name": "risk_level"
+            },
+            {
+              "name": "payload",
+              "type": "object"
+            },
+            {
+              "name": "audit",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "id": "942f4381-c5f2-473b-98e8-635f18656eff",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -6112,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "approval_threshold",
+              "value": 100000,
+              "type": "number"
+            },
+            {
+              "id": "id-2",
+              "name": "currency",
+              "value": "INR",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "high_risk_threshold",
+              "value": "high",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "risk_score_threshold",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "id-5",
+              "name": "system_currency",
+              "value": "INR",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "578f1b9c-1c32-4477-830c-262b0b5fe690",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -5888,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Validate mandatory fields\n  const requiredFields = ['request_id', 'source', 'finance_request_type'];\n  const missingFields = requiredFields.filter(field => !data[field]);\n  \n  if (missingFields.length > 0) {\n    throw new Error(`Missing mandatory fields: ${missingFields.join(', ')}`);\n  }\n  \n  // Validate source\n  if (!['CEO', 'CBS'].includes(data.source)) {\n    throw new Error(`Invalid source: ${data.source}. Must be CEO or CBS`);\n  }\n  \n  // Validate finance_request_type\n  const validTypes = ['budget', 'forecast', 'invoice', 'pricing'];\n  if (!validTypes.includes(data.finance_request_type)) {\n    throw new Error(`Invalid finance_request_type: ${data.finance_request_type}`);\n  }\n  \n  const systemCurrency = $('Workflow Configuration').first().json.system_currency;\n  const inputCurrency = data.currency || systemCurrency;\n  \n  // Currency validation - reject if mismatch\n  if (inputCurrency !== systemCurrency) {\n    throw new Error(`Currency mismatch: Request currency '${inputCurrency}' does not match system currency '${systemCurrency}'. Currency conversion not supported.`);\n  }\n  \n  const amount = parseFloat(data.amount) || 0;\n  const threshold = $('Workflow Configuration').first().json.approval_threshold;\n  \n  // Normalize and structure output\n  const normalized = {\n    finance_id: `FIN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,\n    request_id: data.request_id,\n    source: data.source,\n    type: data.finance_request_type,\n    intent_summary: data.intent_summary || '',\n    amount: amount,\n    original_amount: amount,\n    currency: inputCurrency,\n    mode: data.mode || 'simulation',\n    timestamp: new Date().toISOString(),\n    approval_required: amount > threshold,\n    raw_input: data\n  };\n  \n  output.push({ json: normalized });\n}\n\nreturn output;"
+      },
+      "id": "043d7df8-5eab-408e-ad95-408388fbde74",
+      "name": "Input Validation & Normalization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4768,
+        688
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the CFO Finance Orchestrator for a cosmetic brand.\n\nYour role is to coordinate financial analysis across specialized agents and provide strategic financial oversight.\n\nYou will receive a finance request with the following structure:\n- finance_id: Unique identifier\n- request_id: Original request ID\n- source: CEO or CBS (Business Strategist)\n- type: budget | forecast | invoice | pricing\n- amount: Financial amount in question\n- currency: Currency code\n- mode: simulation | execute\n- intent_summary: Description of the request\n\nYour task:\n1. Analyze the finance request context\n2. Determine which specialized agents need to be consulted\n3. Coordinate the analysis workflow\n4. Provide executive summary and recommendations\n\nReturn a JSON object with:\n{\n  \"analysis_required\": [\"finance_intelligence\", \"cost_audit\", \"risk_analysis\"],\n  \"priority\": \"low | medium | high | critical\",\n  \"executive_summary\": \"Brief overview of the request\",\n  \"recommended_next_steps\": [\"step1\", \"step2\"]\n}"
+        }
+      },
+      "id": "58b8d013-8ad0-489e-9c32-8fc492969c20",
+      "name": "CFO - Finance Orchestrator",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -4544,
+        688
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "8fa6f389-6831-4b41-9ece-5125dc4c7619",
+      "name": "OpenAI Model - CFO",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -4544,
+        912
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"analysis_required\": [\"finance_intelligence\", \"cost_audit\", \"risk_analysis\"],\n  \"priority\": \"medium\",\n  \"executive_summary\": \"Budget request for Q1 marketing campaign\",\n  \"recommended_next_steps\": [\"Verify cashflow impact\", \"Check vendor pricing\"]\n}"
+      },
+      "id": "17373d4f-ce13-4865-bf63-4dde09cce535",
+      "name": "CFO Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -4416,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Finance Intelligence Agent specializing in revenue forecasting, cashflow analysis, and unit economics.\n\nYour task is to analyze the financial request and compute:\n\n1. Revenue Forecast:\n   - Projected revenue impact\n   - Revenue growth rate implications\n   - Market conditions affecting forecast\n\n2. Cashflow Projection:\n   - Short-term cashflow impact (30/60/90 days)\n   - Working capital requirements\n   - Payment timing considerations\n\n3. Unit Economics:\n   - Cost per unit analysis\n   - Margin calculations\n   - Break-even analysis\n\n4. Financial Health Score (0-100):\n   - Overall financial viability\n   - Risk-adjusted score\n\nReturn ONLY valid JSON with this exact structure:\n{\n  \"revenue_forecast\": {\n    \"projected_impact\": 0,\n    \"growth_rate\": 0,\n    \"confidence_level\": \"low | medium | high\"\n  },\n  \"cashflow_projection\": {\n    \"day_30\": 0,\n    \"day_60\": 0,\n    \"day_90\": 0,\n    \"working_capital_needed\": 0\n  },\n  \"unit_economics\": {\n    \"cost_per_unit\": 0,\n    \"margin_percentage\": 0,\n    \"break_even_units\": 0\n  },\n  \"financial_health_score\": 0\n}"
+        }
+      },
+      "id": "ed0d46b3-d683-4a02-ad9e-d7352b070180",
+      "name": "Finance Intelligence Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -4192,
+        304
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "e62b5053-3e6a-4d69-8267-9c662f3161da",
+      "name": "OpenAI Model - Finance Intelligence",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -4192,
+        528
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"revenue_forecast\": {\n    \"projected_impact\": 500000,\n    \"growth_rate\": 15.5,\n    \"confidence_level\": \"high\"\n  },\n  \"cashflow_projection\": {\n    \"day_30\": -50000,\n    \"day_60\": 100000,\n    \"day_90\": 250000,\n    \"working_capital_needed\": 75000\n  },\n  \"unit_economics\": {\n    \"cost_per_unit\": 25.50,\n    \"margin_percentage\": 42.5,\n    \"break_even_units\": 5000\n  },\n  \"financial_health_score\": 78\n}"
+      },
+      "id": "9b549d8a-3825-4638-8766-3b35534cb7ee",
+      "name": "Finance Intelligence Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -4064,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Cost Audit Agent specializing in cost anomaly detection, vendor pricing validation, and expense optimization.\n\nYour task is to audit the financial request for:\n\n1. Anomalies Detection:\n   - Unusual spending patterns\n   - Out-of-range amounts\n   - Timing irregularities\n\n2. Vendor Overpricing:\n   - Compare against market rates\n   - Historical pricing analysis\n   - Competitive benchmarking\n\n3. Duplicate Expenses:\n   - Check for duplicate invoices\n   - Redundant budget allocations\n   - Overlapping cost centers\n\n4. Cost Optimization:\n   - Suggest adjusted amounts\n   - Identify savings opportunities\n\nReturn ONLY valid JSON with this exact structure:\n{\n  \"anomalies_detected\": true,\n  \"issues\": [\n    {\n      \"type\": \"overpricing | duplicate | unusual_pattern\",\n      \"severity\": \"low | medium | high\",\n      \"description\": \"Issue description\",\n      \"recommendation\": \"Suggested action\"\n    }\n  ],\n  \"adjusted_amount\": 0,\n  \"savings_potential\": 0,\n  \"audit_confidence\": \"low | medium | high\"\n}"
+        }
+      },
+      "id": "3d02c68b-6028-4c26-9e91-4632595f98b2",
+      "name": "Cost Audit Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -4192,
+        704
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "478129fc-4dc5-4bd9-900c-4b5c7c9b08e5",
+      "name": "OpenAI Model - Cost Audit",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -4192,
+        928
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"anomalies_detected\": true,\n  \"issues\": [\n    {\n      \"type\": \"overpricing\",\n      \"severity\": \"medium\",\n      \"description\": \"Vendor pricing 15% above market rate\",\n      \"recommendation\": \"Negotiate with vendor or seek alternative\"\n    }\n  ],\n  \"adjusted_amount\": 85000,\n  \"savings_potential\": 15000,\n  \"audit_confidence\": \"high\"\n}"
+      },
+      "id": "a27b5e31-f5e0-45ad-bee0-f428ae4fd81f",
+      "name": "Cost Audit Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -4064,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Risk Analysis Agent specializing in financial risk assessment, supplier dependency analysis, and exposure management.\n\nYour task is to evaluate:\n\n1. Cash Shortage Risk:\n   - Liquidity analysis\n   - Cash reserve adequacy\n   - Payment obligation conflicts\n\n2. Supplier Dependency:\n   - Single-source risk\n   - Supplier concentration\n   - Alternative supplier availability\n\n3. Financial Exposure:\n   - Currency risk\n   - Market volatility impact\n   - Contractual obligations\n\n4. Overall Risk Assessment:\n   - Aggregate risk level\n   - Risk mitigation strategies\n   - Recommended actions\n\nReturn ONLY valid JSON with this exact structure:\n{\n  \"risk_level\": \"low | medium | high\",\n  \"risk_factors\": [\n    {\n      \"category\": \"cash_shortage | supplier_dependency | market_exposure | operational\",\n      \"severity\": \"low | medium | high\",\n      \"description\": \"Risk description\",\n      \"probability\": \"low | medium | high\",\n      \"impact\": \"low | medium | high\"\n    }\n  ],\n  \"recommended_action\": \"approve | approve_with_conditions | reject | escalate\",\n  \"mitigation_strategies\": [\"strategy1\", \"strategy2\"],\n  \"risk_score\": 0\n}"
+        }
+      },
+      "id": "2723f5b0-5ab8-4711-b753-578008994d94",
+      "name": "Risk Analysis Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -4192,
+        1216
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "e398dc0a-39d8-49d2-b903-ff5dc92f3032",
+      "name": "OpenAI Model - Risk Analysis",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -4192,
+        1440
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"risk_level\": \"medium\",\n  \"risk_factors\": [\n    {\n      \"category\": \"cash_shortage\",\n      \"severity\": \"medium\",\n      \"description\": \"Payment timing may strain Q1 cashflow\",\n      \"probability\": \"medium\",\n      \"impact\": \"medium\"\n    }\n  ],\n  \"recommended_action\": \"approve_with_conditions\",\n  \"mitigation_strategies\": [\"Stagger payment schedule\", \"Secure credit line\"],\n  \"risk_score\": 45\n}"
+      },
+      "id": "e7afc922-b052-4863-8638-e78d25109e55",
+      "name": "Risk Analysis Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -4064,
+        1440
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "finance_intelligence",
+              "value": "={{ $('Finance Intelligence Agent').item.json }}",
+              "type": "object"
+            },
+            {
+              "id": "id-2",
+              "name": "cost_audit",
+              "value": "={{ $('Cost Audit Agent').item.json }}",
+              "type": "object"
+            },
+            {
+              "id": "id-3",
+              "name": "risk_analysis",
+              "value": "={{ $('Risk Analysis Agent').item.json }}",
+              "type": "object"
+            },
+            {
+              "id": "id-4",
+              "name": "analysis_timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "amount",
+              "value": "={{ $json.amount }}",
+              "type": "number"
+            },
+            {
+              "id": "id-6",
+              "name": "original_amount",
+              "value": "={{ $json.original_amount }}",
+              "type": "number"
+            },
+            {
+              "id": "id-7",
+              "name": "currency",
+              "value": "={{ $json.currency }}",
+              "type": "string"
+            },
+            {
+              "id": "id-8",
+              "name": "mode",
+              "value": "={{ $json.mode }}",
+              "type": "string"
+            },
+            {
+              "id": "id-9",
+              "name": "finance_id",
+              "value": "={{ $json.finance_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-10",
+              "name": "request_id",
+              "value": "={{ $json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-11",
+              "name": "source",
+              "value": "={{ $json.source }}",
+              "type": "string"
+            },
+            {
+              "id": "id-12",
+              "name": "type",
+              "value": "={{ $json.type }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "ba487ae2-b0a7-4d49-904e-b4c621606500",
+      "name": "Merge Analysis Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3840,
+        816
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Merge Analysis Results').item.json.amount }}",
+              "rightValue": "={{ $('Workflow Configuration').first().json.approval_threshold }}",
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $('Merge Analysis Results').item.json.risk_analysis.risk_level }}",
+              "rightValue": "low",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-3",
+              "leftValue": "={{ $('Merge Analysis Results').item.json.risk_analysis.risk_score }}",
+              "rightValue": "={{ $('Workflow Configuration').first().json.risk_score_threshold }}",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d32d0db6-c2d3-4bd8-b9c6-e47e1c512a4f",
+      "name": "Decision Gate - Auto Approve Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2496,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.risk_analysis.risk_level }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f575ae75-efed-42a0-a6b0-5a195a43cd7a",
+      "name": "Decision Gate - High Risk Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2272,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "approved",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "approval_type",
+              "value": "auto",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "approval_reason",
+              "value": "Low risk and within threshold",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "approval_timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "status",
+              "value": "approved",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "2ea8954e-32fe-4b07-a310-7e59975285ef",
+      "name": "Auto-Approved",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1600,
+        1360
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "form",
+        "formTitle": "=CFO Approval Required - Finance Request {{ $json.finance_id }}",
+        "formDescription": "Review and approve/reject this finance request",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Request Details",
+              "fieldType": "textarea",
+              "defaultValue": "={{ JSON.stringify($json, null, 2) }}"
+            },
+            {
+              "fieldLabel": "Decision",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Approve"
+                  },
+                  {
+                    "option": "Reject"
+                  },
+                  {
+                    "option": "Request Revision"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Comments",
+              "fieldType": "textarea"
+            },
+            {
+              "fieldLabel": "Conditions",
+              "fieldType": "textarea",
+              "placeholder": "Any conditions or requirements for approval"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "93d66d86-0744-43ab-93ba-2e0d36f705b4",
+      "name": "CFO Approval Required",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -2048,
+        496
+      ],
+      "webhookId": "57c396d6-51e3-42dd-9d8b-b1e1af178732",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "escalated_to_ceo",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "escalation_reason",
+              "value": "High financial risk detected - requires CEO review",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "escalation_timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "approved",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-5",
+              "name": "requires_ceo_review",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-6",
+              "name": "status",
+              "value": "escalated_simulation",
+              "type": "string"
+            },
+            {
+              "id": "id-7",
+              "name": "mode",
+              "value": "simulation",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "0b3a1d15-1313-47af-bf90-bfae560313ca",
+      "name": "Escalate to CEO",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        1216
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('CFO Approval Required').item.json.decision }}",
+              "rightValue": "Approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $('CFO Approval Required').item.json.decision }}",
+              "rightValue": "Request Revision",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5ae85840-055f-46a4-89ae-5cfe2ed83002",
+      "name": "Check Approval Decision",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1824,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.approved }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "execute",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0a7ca811-e832-4ed7-9572-87b9eff2a71c",
+      "name": "Check Execution Mode",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1376,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Trading Ops Agent responsible for buy timing optimization and payment scheduling.\n\nYour task is to:\n\n1. Optimize Buy Timing:\n   - Analyze market conditions\n   - Determine optimal purchase timing\n   - Consider seasonal factors\n   - Evaluate supplier lead times\n\n2. Payment Scheduling:\n   - Structure payment terms\n   - Optimize cashflow timing\n   - Negotiate payment milestones\n   - Consider early payment discounts\n\n3. Execution Planning:\n   - Create detailed execution timeline\n   - Identify dependencies\n   - Set up monitoring checkpoints\n\nReturn ONLY valid JSON with this exact structure:\n{\n  \"buy_timing\": {\n    \"recommended_date\": \"YYYY-MM-DD\",\n    \"market_conditions\": \"favorable | neutral | unfavorable\",\n    \"timing_rationale\": \"Explanation\"\n  },\n  \"payment_schedule\": [\n    {\n      \"milestone\": \"Description\",\n      \"amount\": 0,\n      \"due_date\": \"YYYY-MM-DD\",\n      \"terms\": \"Payment terms\"\n    }\n  ],\n  \"execution_timeline\": [\n    {\n      \"step\": \"Action description\",\n      \"date\": \"YYYY-MM-DD\",\n      \"responsible\": \"Role/Person\"\n    }\n  ],\n  \"total_execution_value\": 0\n}"
+        }
+      },
+      "id": "5a9249a1-148c-4593-a4c4-1ceaa1f95787",
+      "name": "Trading Ops Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -928,
+        704
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "71b771c6-1ce8-4409-a336-348aec1500e6",
+      "name": "OpenAI Model - Trading Ops",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -928,
+        928
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"buy_timing\": {\n    \"recommended_date\": \"2024-02-15\",\n    \"market_conditions\": \"favorable\",\n    \"timing_rationale\": \"Pre-season pricing advantage\"\n  },\n  \"payment_schedule\": [\n    {\n      \"milestone\": \"Initial deposit\",\n      \"amount\": 25000,\n      \"due_date\": \"2024-02-15\",\n      \"terms\": \"Net 0\"\n    },\n    {\n      \"milestone\": \"Final payment\",\n      \"amount\": 75000,\n      \"due_date\": \"2024-03-15\",\n      \"terms\": \"Net 30\"\n    }\n  ],\n  \"execution_timeline\": [\n    {\n      \"step\": \"Place purchase order\",\n      \"date\": \"2024-02-15\",\n      \"responsible\": \"Procurement\"\n    }\n  ],\n  \"total_execution_value\": 100000\n}"
+      },
+      "id": "f308e09d-7d1b-46f2-b420-73471ae7226d",
+      "name": "Trading Ops Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -800,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Risk Ops Agent responsible for fraud monitoring and post-payment surveillance.\n\nYour task is to:\n\n1. Fraud Monitoring:\n   - Verify vendor legitimacy\n   - Check for suspicious patterns\n   - Validate payment details\n   - Monitor transaction anomalies\n\n2. Post-Payment Watch:\n   - Track payment confirmation\n   - Monitor delivery/fulfillment\n   - Verify invoice matching\n   - Flag discrepancies\n\n3. Compliance Checks:\n   - Regulatory compliance\n   - Internal policy adherence\n   - Audit trail completeness\n\n4. Risk Alerts:\n   - Real-time monitoring setup\n   - Alert thresholds\n   - Escalation procedures\n\nReturn ONLY valid JSON with this exact structure:\n{\n  \"fraud_check\": {\n    \"status\": \"clear | warning | alert\",\n    \"vendor_verified\": true,\n    \"payment_details_valid\": true,\n    \"risk_indicators\": [\"indicator1\", \"indicator2\"]\n  },\n  \"monitoring_plan\": {\n    \"checkpoints\": [\n      {\n        \"checkpoint\": \"Description\",\n        \"date\": \"YYYY-MM-DD\",\n        \"criteria\": \"Success criteria\"\n      }\n    ],\n    \"alert_thresholds\": {\n      \"payment_delay_days\": 0,\n      \"amount_variance_percent\": 0\n    }\n  },\n  \"compliance_status\": \"compliant | non_compliant | pending_review\",\n  \"recommendations\": [\"recommendation1\", \"recommendation2\"]\n}"
+        }
+      },
+      "id": "8f617aaf-9413-4b05-97e5-6fd0caecac05",
+      "name": "Risk Ops Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -576,
+        704
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "8619adb2-48b6-43f7-82b3-49ed180dfb05",
+      "name": "OpenAI Model - Risk Ops",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -576,
+        928
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"fraud_check\": {\n    \"status\": \"clear\",\n    \"vendor_verified\": true,\n    \"payment_details_valid\": true,\n    \"risk_indicators\": []\n  },\n  \"monitoring_plan\": {\n    \"checkpoints\": [\n      {\n        \"checkpoint\": \"Payment confirmation\",\n        \"date\": \"2024-02-16\",\n        \"criteria\": \"Bank confirmation received\"\n      },\n      {\n        \"checkpoint\": \"Delivery verification\",\n        \"date\": \"2024-03-01\",\n        \"criteria\": \"Goods received and inspected\"\n      }\n    ],\n    \"alert_thresholds\": {\n      \"payment_delay_days\": 3,\n      \"amount_variance_percent\": 5\n    }\n  },\n  \"compliance_status\": \"compliant\",\n  \"recommendations\": [\"Set up automated payment tracking\", \"Schedule delivery inspection\"]\n}"
+      },
+      "id": "d54ebec4-8b87-4bf7-9dbf-96fb74ce69a9",
+      "name": "Risk Ops Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -448,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "execution_status",
+              "value": "completed",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "trading_ops",
+              "value": "={{ $('Trading Ops Agent').item.json }}",
+              "type": "object"
+            },
+            {
+              "id": "id-3",
+              "name": "risk_ops",
+              "value": "={{ $('Risk Ops Agent').item.json }}",
+              "type": "object"
+            },
+            {
+              "id": "id-4",
+              "name": "execution_timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "e03653a1-8353-4726-9085-57352280cdd3",
+      "name": "Execution Complete",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        608
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "execution_status",
+              "value": "simulation_only",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "simulation_note",
+              "value": "No execution performed - simulation mode",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "simulation_timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "d2eb9bf1-8ff4-445e-b0fd-c325b22adf4c",
+      "name": "Simulation Mode - No Execution",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        384
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "approved",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "rejection_reason",
+              "value": "={{ $json.comments || 'CFO rejected the request' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "rejection_timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "execution_status",
+              "value": "rejected",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "status",
+              "value": "rejected",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "a9696dc7-579f-4771-b882-5beee1192eb0",
+      "name": "Rejected - Return to Caller",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        192
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Apply cost audit adjusted_amount if available and greater than 0\n  const costAudit = data.cost_audit || {};\n  const adjustedAmount = parseFloat(costAudit.adjusted_amount) || 0;\n  const originalAmount = data.amount;\n  \n  let finalAmount = originalAmount;\n  let amountAdjusted = false;\n  let adjustmentReason = '';\n  \n  if (adjustedAmount > 0 && adjustedAmount !== originalAmount) {\n    finalAmount = adjustedAmount;\n    amountAdjusted = true;\n    adjustmentReason = `Cost audit adjusted amount from ${originalAmount} to ${adjustedAmount}`;\n  }\n  \n  // Update approval_required flag based on final amount\n  const threshold = $('Workflow Configuration').first().json.approval_threshold;\n  const riskLevel = data.risk_analysis?.risk_level || 'unknown';\n  const riskScore = data.risk_analysis?.risk_score || 0;\n  const riskScoreThreshold = $('Workflow Configuration').first().json.risk_score_threshold;\n  \n  const approvalRequired = finalAmount > threshold || riskLevel !== 'low' || riskScore >= riskScoreThreshold;\n  \n  output.push({\n    json: {\n      ...data,\n      amount: finalAmount,\n      amount_adjusted: amountAdjusted,\n      adjustment_reason: adjustmentReason,\n      approval_required: approvalRequired\n    }\n  });\n}\n\nreturn output;"
+      },
+      "id": "bc47ea9d-6fa5-40bd-a75f-7e6f8d04f33b",
+      "name": "Apply Cost Adjustments",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2720,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "approved",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "status",
+              "value": "revision_requested",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "revision_comments",
+              "value": "={{ $json.comments || 'CFO requested revisions' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "revision_timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "execution_status",
+              "value": "revision_requested",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "ab9adecc-a5ee-45df-aaf1-1a8bbde7907a",
+      "name": "Revision Requested",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        0
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.risk_ops.fraud_check.status }}",
+              "rightValue": "alert",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0c659c40-4cd5-479d-9816-9e0c5cb34a15",
+      "name": "Check Fraud Alert",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -224,
+        704
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "fraud_alert",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "fraud_status",
+              "value": "={{ $json.risk_ops.fraud_check.status }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "fraud_indicators",
+              "value": "={{ $json.risk_ops.fraud_check.risk_indicators }}",
+              "type": "array"
+            },
+            {
+              "id": "id-4",
+              "name": "escalated_to_cfo",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-5",
+              "name": "escalation_reason",
+              "value": "Fraud alert detected during execution",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "execution_status",
+              "value": "fraud_alert_escalated",
+              "type": "string"
+            },
+            {
+              "id": "id-7",
+              "name": "approved",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f9e62a5b-464b-47f6-9fa5-3a2721938e25",
+      "name": "Fraud Alert - Escalate",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        800
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('CFO Approval Required').item.json.decision }}",
+              "rightValue": "Reject",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "768184e2-cc35-4f0c-9bd0-718f2e0fea5f",
+      "name": "Check Rejection Decision",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -224,
+        96
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "approved",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "approval_type",
+              "value": "cfo",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "status",
+              "value": "approved",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "approval_timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "84e60855-27d8-4d9c-b681-3d0dec4404f2",
+      "name": "CFO Approved - Set Flags",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1600,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Validate universal contract from WF-0\n  const mandatoryFields = ['request_id', 'mode', 'confidence', 'risk_level', 'payload', 'audit'];\n  const missingFields = mandatoryFields.filter(field => !data[field]);\n  \n  const contractValid = missingFields.length === 0;\n  \n  const validationResult = {\n    ...data,\n    contract_valid: contractValid,\n    missing_fields: missingFields,\n    validation_timestamp: new Date().toISOString()\n  };\n  \n  output.push({ json: validationResult });\n}\n\nreturn output;"
+      },
+      "id": "275ceb6f-1635-408b-bf21-337db8336695",
+      "name": "Contract Validation - WF-0 Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5664,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "=WF-2 REJECTED: Invalid or incomplete universal contract from WF-0. Missing fields: {{ $json.missing_fields }}"
+      },
+      "id": "1e51f8da-80db-4744-a50f-5f5f0f65e3e7",
+      "name": "STOP - Invalid Contract",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -5216,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.contract_valid }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "00a19f84-b435-4889-a6e4-e0b8ec129c73",
+      "name": "Check Contract Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5440,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.crea_blocked }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.risk_level }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-3",
+              "leftValue": "={{ $json.crea_approval_present }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "c5a36d09-2172-4e03-8422-f3e0a8124c13",
+      "name": "CREA Block Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5216,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "blocked",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "blocked_by",
+              "value": "CREA",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "reason",
+              "value": "CREA has blocked this request - WF-2 cannot proceed",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "workflow_id",
+              "value": "WF-2",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "request_id",
+              "value": "={{ $json.request_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "20c993e7-9cc8-4070-ba05-fd761e52236e",
+      "name": "Set Status - CREA Blocked",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4992,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "WF-2 BLOCKED: CREA has blocked this request. WF-2 treats CREA decisions as FINAL."
+      },
+      "id": "113ce709-726b-4f71-9feb-8066fa1fe7df",
+      "name": "STOP - CREA Blocked",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -4768,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.confidence }}",
+              "rightValue": "0.9",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.risk_level }}",
+              "rightValue": "low",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3733a5b9-666f-4d43-b768-7281209eac37",
+      "name": "System Confidence Recheck",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -4992,
+        976
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "paused",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "decision",
+              "value": "NO-EXECUTION",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "human_approval_required",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-4",
+              "name": "reason",
+              "value": "Insufficient system confidence for financial autonomy",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "confidence",
+              "value": "={{ $json.confidence }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "risk_level",
+              "value": "={{ $json.risk_level }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "6f4cbe93-05e3-4a96-b31b-5e5c95378961",
+      "name": "Set Status - Low Confidence Paused",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4768,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "=WF-2 PAUSED: Insufficient system confidence ({{ $json.confidence }}) for financial autonomy with risk_level {{ $json.risk_level }}. Human approval required."
+      },
+      "id": "79927bd4-e323-40a7-8ee3-4fa8ea59f8be",
+      "name": "STOP - Insufficient Confidence",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -4480,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "execute",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "aca81405-8e34-43d2-9da9-42bac71d584e",
+      "name": "Execution Mode Guard - Pre Financial Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1152,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "simulation_only",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "decision_summary",
+              "value": "Simulation mode – no financial execution permitted",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "execution_blocked",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-4",
+              "name": "block_reason",
+              "value": "Mode is not execute - all real-world financial actions are DISABLED",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "mode",
+              "value": "={{ $json.mode }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "60ae7b7c-c847-42e1-9f43-24410ce98684",
+      "name": "Set Status - Simulation Block",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        1024
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.amount }}",
+              "rightValue": "={{ $('Workflow Configuration').first().json.approval_threshold }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.risk_analysis.risk_level }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-3",
+              "leftValue": "={{ $json.financial_impact }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "4f96c94d-0d10-4368-bb5a-ff02d585a260",
+      "name": "Founder Approval Gate - High Cost Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -3616,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "form",
+        "formTitle": "FOUNDER APPROVAL REQUIRED - High Cost/Risk Financial Decision",
+        "formDescription": "⚠️ FINAL APPROVAL GATE ⚠️\n\nThis financial action requires founder approval due to high cost or high risk. This is the FINAL approval gate before any financial execution can occur. No financial actions will be executed without your explicit approval.\n\nPlease review all details carefully before making your decision.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Request Summary",
+              "fieldType": "textarea",
+              "defaultValue": "={{ JSON.stringify($json, null, 2) }}"
+            },
+            {
+              "fieldLabel": "Amount",
+              "defaultValue": "={{ $json.amount }} {{ $json.currency }}"
+            },
+            {
+              "fieldLabel": "Financial Impact",
+              "defaultValue": "={{ $json.financial_impact }}"
+            },
+            {
+              "fieldLabel": "Risk Level",
+              "defaultValue": "={{ $json.risk_analysis.risk_level }}"
+            },
+            {
+              "fieldLabel": "Founder Decision",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Approve"
+                  },
+                  {
+                    "option": "Reject"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Founder Comments",
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6a3e882c-f0c3-4c4b-8899-5fbb865ff1c9",
+      "name": "Wait for Founder Approval",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -3392,
+        912
+      ],
+      "webhookId": "9964dca6-728e-43e3-b791-3f88e9ab7c26"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json['Founder Decision'] }}",
+              "rightValue": "Approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ba497685-7ec1-4901-bb15-698a661ca0d0",
+      "name": "Check Founder Decision",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -3168,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "blocked",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "decision",
+              "value": "NO-EXECUTION",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "reason",
+              "value": "Founder approval required for high-cost financial action - REJECTED by founder",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "founder_approval_required",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-5",
+              "name": "founder_decision",
+              "value": "rejected",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "founder_comments",
+              "value": "={{ $json['Founder Comments'] }}",
+              "type": "string"
+            },
+            {
+              "id": "id-7",
+              "name": "decision_summary",
+              "value": "Founder approval required before financial execution - currently BLOCKED",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "b31f8802-d4f4-427b-9427-8f321beb04fd",
+      "name": "Set Status - Founder Rejected",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2944,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "=WF-2 BLOCKED: Founder rejected high-cost financial action. Amount: {{ $json.amount }} {{ $json.currency }}. Financial execution is NOT permitted without founder approval."
+      },
+      "id": "8e6c10a5-c846-4ef3-b04a-79620b64fc45",
+      "name": "STOP - Founder Approval Required",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -2720,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "founder_approval_granted",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "founder_approval_timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "founder_comments",
+              "value": "={{ $json['Founder Comments'] }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "approvals",
+              "value": "=[{\"approver\": \"Founder\", \"timestamp\": \"{{ $now.toISO() }}\", \"decision\": \"approved\"}]",
+              "type": "array"
+            },
+            {
+              "id": "id-5",
+              "name": "high_cost_approved",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-6",
+              "name": "founder_gate_passed",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "a100d787-cb01-4690-af69-9090dace0f9f",
+      "name": "Set Founder Approved Flag",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2944,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // CRITICAL: Get confidence from WF-0 trigger ONLY\n  const triggerData = $('Execute Workflow Trigger').item.json;\n  const confidence = triggerData.confidence || 0;\n  \n  // Get risk_level from WF-0 trigger\n  const riskLevel = triggerData.risk_level || 'unknown';\n  \n  // Map status to standardized values\n  let status = 'unknown';\n  const rawStatus = data.execution_status || data.status;\n  \n  if (rawStatus === 'completed') {\n    status = 'completed';\n  } else if (rawStatus === 'simulation_only' || rawStatus === 'simulation_block') {\n    status = 'simulation_only';\n  } else if (rawStatus === 'paused' || rawStatus === 'revision_requested') {\n    status = 'paused';\n  } else if (rawStatus === 'blocked' || rawStatus === 'escalated_simulation' || rawStatus === 'fraud_alert_escalated') {\n    status = 'blocked';\n  } else if (rawStatus === 'rejected') {\n    status = 'rejected';\n  } else if (data.approved === true) {\n    status = 'completed';\n  } else if (data.approved === false) {\n    status = 'rejected';\n  }\n  \n  // Build decision summary\n  let decisionSummary = '';\n  if (data.executive_summary) {\n    decisionSummary = data.executive_summary;\n  } else if (data.approval_reason) {\n    decisionSummary = data.approval_reason;\n  } else if (data.rejection_reason) {\n    decisionSummary = data.rejection_reason;\n  } else if (data.escalation_reason) {\n    decisionSummary = data.escalation_reason;\n  } else if (data.decision_summary) {\n    decisionSummary = data.decision_summary;\n  } else {\n    decisionSummary = `Finance request processed with status: ${status}`;\n  }\n  \n  // Calculate financial_impact as string based on amount thresholds\n  const amount = data.amount || 0;\n  let financialImpact = 'low';\n  if (amount > 500000) {\n    financialImpact = 'high';\n  } else if (amount > 100000) {\n    financialImpact = 'medium';\n  }\n  \n  // Determine founder approval requirement\n  const founderApprovalRequired = data.requires_ceo_review || data.escalated_to_ceo || data.founder_approval_required || false;\n  \n  // Build approvals array\n  const approvals = [];\n  if (data.approval_type) {\n    approvals.push({\n      approver: data.approval_type,\n      decision: data.approved ? 'approved' : 'rejected',\n      timestamp: data.approval_timestamp || data.timestamp || new Date().toISOString(),\n      comments: data.comments || data.approval_reason || ''\n    });\n  }\n  if (data.founder_approved || data.founder_approval_granted) {\n    approvals.push({\n      approver: 'founder',\n      decision: 'approved',\n      timestamp: data.founder_approval_timestamp || data.approval_timestamp || new Date().toISOString(),\n      comments: data.founder_comments || 'Founder approval granted'\n    });\n  }\n  \n  // Determine next allowed actions\n  const nextAllowedActions = [];\n  if (status === 'completed' && data.mode === 'execute') {\n    nextAllowedActions.push('execute_payment', 'monitor_execution');\n  } else if (status === 'completed' && data.mode === 'simulation') {\n    nextAllowedActions.push('convert_to_execution', 'review_simulation');\n  } else if (status === 'paused') {\n    nextAllowedActions.push('resubmit_request', 'cancel_request');\n  } else if (status === 'rejected') {\n    nextAllowedActions.push('appeal_decision', 'cancel_request');\n  } else if (status === 'blocked' || founderApprovalRequired) {\n    nextAllowedActions.push('await_founder_approval');\n  }\n  \n  // Build audit object\n  const audit = {\n    timestamp: new Date().toISOString(),\n    performed_by: 'WF-2',\n    notes: [\n      `Finance request ${data.finance_id || data.request_id} processed`,\n      `Status: ${status}`,\n      `Risk Level: ${riskLevel}`,\n      `Confidence: ${confidence}`\n    ].join(' | ')\n  };\n  \n  // Construct ONLY standardized output - DROP all other fields\n  const normalized = {\n    workflow_id: 'WF-2',\n    request_id: data.request_id || data.finance_id || 'unknown',\n    status: status,\n    decision_summary: decisionSummary,\n    confidence: confidence,\n    risk_level: riskLevel,\n    financial_impact: financialImpact,\n    amount: amount,\n    founder_approval_required: founderApprovalRequired,\n    approvals: approvals,\n    next_allowed_actions: nextAllowedActions,\n    audit: audit\n  };\n  \n  output.push({ json: normalized });\n}\n\nreturn output;"
+      },
+      "id": "159f9ba7-a0e2-4152-9fdc-e1ca08ddbf97",
+      "name": "Final Output Normalization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        608
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Determine execution or non-execution reason\n  let executionReason = '';\n  if (data.execution_status === 'completed') {\n    executionReason = 'Approved and executed successfully';\n  } else if (data.execution_status === 'simulation_only') {\n    executionReason = 'Simulation mode - no execution performed';\n  } else if (data.execution_status === 'rejected') {\n    executionReason = data.rejection_reason || 'Request rejected';\n  } else if (data.execution_status === 'escalated_simulation') {\n    executionReason = data.escalation_reason || 'Escalated to CEO';\n  } else if (data.execution_status === 'fraud_alert_escalated') {\n    executionReason = data.escalation_reason || 'Fraud alert detected';\n  } else if (data.execution_status === 'revision_requested') {\n    executionReason = data.revision_comments || 'Revision requested';\n  } else {\n    executionReason = 'Unknown status';\n  }\n  \n  // Collect all approvals\n  const allApprovals = [];\n  if (data.approved && data.approval_type === 'auto') {\n    allApprovals.push({\n      type: 'auto',\n      timestamp: data.approval_timestamp,\n      reason: data.approval_reason\n    });\n  }\n  if (data.approved && data.approval_type === 'cfo') {\n    allApprovals.push({\n      type: 'cfo',\n      timestamp: data.approval_timestamp,\n      decision: 'Approve'\n    });\n  }\n  if (data.founder_approved) {\n    allApprovals.push({\n      type: 'founder',\n      timestamp: data.approval_timestamp || new Date().toISOString()\n    });\n  }\n  \n  // Calculate financial impact\n  const financialImpact = {\n    original_amount: data.original_amount || data.amount,\n    final_amount: data.amount,\n    adjusted: data.amount_adjusted || false,\n    adjustment_reason: data.adjustment_reason || '',\n    savings_potential: data.cost_audit?.savings_potential || 0,\n    currency: data.currency\n  };\n  \n  // Get system confidence from WF-0 trigger (never override)\n  const systemConfidence = $('Execute Workflow Trigger').item.json.confidence;\n  \n  // Optional: capture finance-specific confidence separately if needed\n  const financeConfidence = data.cost_audit?.audit_confidence || null;\n  \n  // Create immutable audit entry\n  const auditEntry = {\n    workflow_id: 'WF-2',\n    request_id: data.request_id,\n    finance_id: data.finance_id,\n    mode: data.mode,\n    amount: data.amount,\n    approval_state: data.approved ? 'approved' : 'not_approved',\n    execution_or_non_execution_reason: executionReason,\n    timestamp: new Date().toISOString(),\n    all_approvals: allApprovals,\n    risk_level: data.risk_analysis?.risk_level || 'unknown',\n    risk_score: data.risk_analysis?.risk_score || 0,\n    confidence: systemConfidence,\n    finance_confidence: financeConfidence,\n    financial_impact: financialImpact,\n    execution_status: data.execution_status,\n    source: data.source,\n    type: data.type,\n    fraud_check: data.risk_ops?.fraud_check || null,\n    trading_ops_executed: !!data.trading_ops,\n    risk_ops_executed: !!data.risk_ops\n  };\n  \n  // Return item with audit_entry field\n  output.push({\n    json: {\n      ...data,\n      audit_entry: auditEntry\n    }\n  });\n}\n\nreturn output;"
+      },
+      "id": "4fe08004-8897-4a00-950e-b77850e9204d",
+      "name": "Enhanced Audit Logger",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        608
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Contract Validation - WF-0 Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Validation & Normalization": {
+      "main": [
+        [
+          {
+            "node": "CFO - Finance Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model - CFO": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CFO - Finance Orchestrator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CFO Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "CFO - Finance Orchestrator",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CFO - Finance Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Finance Intelligence Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Cost Audit Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Risk Analysis Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model - Finance Intelligence": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Finance Intelligence Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finance Intelligence Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Finance Intelligence Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model - Cost Audit": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Cost Audit Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cost Audit Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Cost Audit Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model - Risk Analysis": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Risk Analysis Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Analysis Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Risk Analysis Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finance Intelligence Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Analysis Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cost Audit Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Analysis Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Analysis Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Analysis Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Gate - Auto Approve Check": {
+      "main": [
+        [
+          {
+            "node": "Auto-Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Decision Gate - High Risk Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Gate - High Risk Check": {
+      "main": [
+        [
+          {
+            "node": "Escalate to CEO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CFO Approved - Set Flags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CFO Approval Required": {
+      "main": [
+        [
+          {
+            "node": "Check Approval Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Approval Decision": {
+      "main": [
+        [
+          {
+            "node": "CFO Approved - Set Flags",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Rejection Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Approved": {
+      "main": [
+        [
+          {
+            "node": "Check Execution Mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Execution Mode": {
+      "main": [
+        [
+          {
+            "node": "Execution Mode Guard - Pre Financial Action",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Simulation Mode - No Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model - Trading Ops": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Trading Ops Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trading Ops Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Trading Ops Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trading Ops Agent": {
+      "main": [
+        [
+          {
+            "node": "Risk Ops Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model - Risk Ops": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Risk Ops Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Ops Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Risk Ops Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execution Complete": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Audit Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulation Mode - No Execution": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Audit Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rejected - Return to Caller": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Audit Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalate to CEO": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Audit Logger",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Execution Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Analysis Results": {
+      "main": [
+        [
+          {
+            "node": "Founder Approval Gate - High Cost Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Cost Adjustments": {
+      "main": [
+        [
+          {
+            "node": "Decision Gate - Auto Approve Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Revision Requested": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Audit Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Ops Agent": {
+      "main": [
+        [
+          {
+            "node": "Check Fraud Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Fraud Alert": {
+      "main": [
+        [
+          {
+            "node": "Fraud Alert - Escalate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execution Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fraud Alert - Escalate": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Audit Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Rejection Decision": {
+      "main": [
+        [
+          {
+            "node": "Rejected - Return to Caller",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Revision Requested",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CFO Approved - Set Flags": {
+      "main": [
+        [
+          {
+            "node": "Check Execution Mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contract Validation - WF-0 Input": {
+      "main": [
+        [
+          {
+            "node": "Check Contract Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Contract Valid": {
+      "main": [
+        [
+          {
+            "node": "CREA Block Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CREA Block Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREA Block Check": {
+      "main": [
+        [
+          {
+            "node": "Set Status - CREA Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "System Confidence Recheck",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Status - CREA Blocked": {
+      "main": [
+        [
+          {
+            "node": "System Confidence Recheck",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "System Confidence Recheck": {
+      "main": [
+        [
+          {
+            "node": "Set Status - Low Confidence Paused",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Input Validation & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Status - Low Confidence Paused": {
+      "main": [
+        [
+          {
+            "node": "Input Validation & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Founder Approval Gate - High Cost Check": {
+      "main": [
+        [
+          {
+            "node": "Wait for Founder Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apply Cost Adjustments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Founder Approval": {
+      "main": [
+        [
+          {
+            "node": "Check Founder Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Founder Decision": {
+      "main": [
+        [
+          {
+            "node": "Set Founder Approved Flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Status - Founder Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Status - Founder Rejected": {
+      "main": [
+        [
+          {
+            "node": "STOP - Founder Approval Required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Founder Approved Flag": {
+      "main": [
+        [
+          {
+            "node": "Apply Cost Adjustments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execution Mode Guard - Pre Financial Action": {
+      "main": [
+        [
+          {
+            "node": "Trading Ops Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Status - Simulation Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Status - Simulation Block": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Audit Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced Audit Logger": {
+      "main": [
+        [
+          {
+            "node": "Final Output Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "7799a72a-3f32-491e-bd1d-6b0cde7005fa",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bea94a9541cdb25b8e9767cbab760254eae13c9cf6f5cc323581c4d6ea0dea6f"
+  },
+  "id": "rNv9DzGl7IFHotwO",
+  "tags": []
+}

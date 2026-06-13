@@ -1,0 +1,742 @@
+{
+  "name": "WF: HR- Human Resources Talent Management and Policy Control",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "051f89fa-b515-4acc-af61-b4d6279023a2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2f76907fbed960a398910145b73fdcdcdaeab5424a9d76499bbf1f155042f8f0"
+  },
+  "id": "flYawPgsikdzuAek",
+  "tags": [],
+  "pinData": {},
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "ebc45237-afbc-4019-b566-899e7996134c",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1200,
+        400
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg1",
+              "name": "workflow_name",
+              "value": "WF-HR",
+              "type": "string"
+            },
+            {
+              "id": "cfg2",
+              "name": "department",
+              "value": "hr",
+              "type": "string"
+            },
+            {
+              "id": "cfg3",
+              "name": "max_hiring_budget_inr",
+              "value": 5000000,
+              "type": "number"
+            },
+            {
+              "id": "cfg4",
+              "name": "performance_threshold",
+              "value": 70,
+              "type": "number"
+            },
+            {
+              "id": "cfg5",
+              "name": "crea_workflow_id",
+              "value": "q1UDzKI9hUOR816f",
+              "type": "string"
+            },
+            {
+              "id": "cfg6",
+              "name": "confidence_threshold",
+              "value": 0.75,
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "196a46f0-1051-42d9-bdb5-27c76e246011",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -960,
+        400
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// HR Input Normalization - universal contract from WF-0 (standalone fallback)\nconst t = $('Execute Workflow Trigger').item.json || {};\nconst payloadRaw = t.payload != null ? t.payload : { task: t.task || t.query || 'HR review', details: t };\nconst payload = (typeof payloadRaw === 'string') ? payloadRaw : JSON.stringify(payloadRaw);\nreturn [{ json: {\n  request_id: t.request_id || ('HR_' + Date.now()),\n  workflow_source: t.workflow_source || 'WF-0',\n  mode: t.mode || 'simulation',\n  risk_level: t.risk_level || 'low',\n  confidence: (typeof t.confidence === 'number') ? t.confidence : 0.9,\n  founder_available: t.founder_available || false,\n  timestamp: new Date().toISOString(),\n  payload: payload,\n  payload_obj: (typeof payloadRaw === 'object') ? payloadRaw : { task: payload }\n}}];"
+      },
+      "id": "8b1ed8be-c8cd-427b-b07e-42170406a785",
+      "name": "Input Normalization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        400
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Input Normalization').item.json.payload }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the CHRO (Chief HR Officer) Orchestrator (L2). You oversee the HR lifecycle: hiring, culture, compliance, performance. Read the request, decide which HR sub-functions are relevant, the priority and overall risk. You delegate; you do not execute. Return JSON only."
+        }
+      },
+      "id": "035052d6-018b-428b-ae89-a0ccd2b85e0d",
+      "name": "CHRO Orchestrator Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -480,
+        300
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "7b994453-b4f5-48fa-a780-1394d54529cf",
+      "name": "Model - CHRO Orchestrator",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -480,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"hr_intent\": {\"type\": \"string\"}, \"sub_tasks\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"priority\": {\"type\": \"string\", \"enum\": [\"low\", \"medium\", \"high\"]}, \"risk_level\": {\"type\": \"string\", \"enum\": [\"low\", \"medium\", \"high\"]}, \"summary\": {\"type\": \"string\"}}, \"required\": [\"hr_intent\", \"priority\", \"risk_level\", \"summary\"]}"
+      },
+      "id": "043ed328-f965-4beb-ab06-8bcdd2e5c2e4",
+      "name": "Parser - CHRO Orchestrator",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -320,
+        500
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Input Normalization').item.json.payload }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Talent Insights Agent (L3) reporting to CHRO. Predict hiring needs and workforce planning: optimal team size, skill gaps, staffing forecast, resignation risk. Return JSON only."
+        }
+      },
+      "id": "dcc0ef48-2304-4aa9-bcca-232af1a7e1f3",
+      "name": "Talent Insights Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -200,
+        300
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "c6bdf2c7-a988-4332-a50a-ffd9d1f48490",
+      "name": "Model - Talent Insights",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -200,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"hiring_need\": {\"type\": \"boolean\"}, \"roles\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"staffing_forecast\": {\"type\": \"string\"}, \"skill_gaps\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"explanation\": {\"type\": \"string\"}}, \"required\": [\"hiring_need\", \"explanation\"]}"
+      },
+      "id": "9fdaed10-90fc-4ad3-9e20-555d927345b6",
+      "name": "Parser - Talent Insights",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -40,
+        500
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Input Normalization').item.json.payload }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Culture & Engagement Agent (L3) reporting to CHRO. Assess morale, burnout risk, team conflicts and engagement. Respect privacy; use only anonymized signals. Return JSON only."
+        }
+      },
+      "id": "db4898e8-5dfa-48b9-ac17-996cdd6982e1",
+      "name": "Culture Engagement Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        80,
+        300
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "35cec63b-c67d-4069-9af8-1793ffb22cd7",
+      "name": "Model - Culture Engagement",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        80,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"culture_score\": {\"type\": \"number\"}, \"burnout_risk\": {\"type\": \"string\", \"enum\": [\"low\", \"medium\", \"high\"]}, \"issues\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"recommendations\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"explanation\": {\"type\": \"string\"}}, \"required\": [\"culture_score\", \"burnout_risk\", \"explanation\"]}"
+      },
+      "id": "b21bda02-5408-49df-bf41-5276290513d2",
+      "name": "Parser - Culture Engagement",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        500
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Input Normalization').item.json.payload }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Policy Enforcement Agent (L3) reporting to CHRO. Detect HR policy violations and discipline needs; require double confirmation for any action. Return JSON only."
+        }
+      },
+      "id": "a51a9b19-c6a1-4063-943b-0753002163cf",
+      "name": "Policy Enforcement Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        360,
+        300
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "3f9f6742-3cb6-4182-a4e7-f9fdc7f73861",
+      "name": "Model - Policy Enforcement",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        360,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"policy_violation\": {\"type\": \"boolean\"}, \"violations\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"severity\": {\"type\": \"string\", \"enum\": [\"low\", \"medium\", \"high\"]}, \"recommended_actions\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"explanation\": {\"type\": \"string\"}}, \"required\": [\"policy_violation\", \"severity\", \"explanation\"]}"
+      },
+      "id": "b065f64c-1018-4b5e-a444-286292f96d6f",
+      "name": "Parser - Policy Enforcement",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        520,
+        500
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Input Normalization').item.json.payload }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Hiring Ops Agent (L4) reporting to Talent Insights. Execute recruitment: parse/score candidates, rank by skill+culture fit, propose interview scheduling. Hiring decisions always require CHRO/CEO approval. Return JSON only."
+        }
+      },
+      "id": "edc91571-23aa-423f-9cf4-bf1850609de0",
+      "name": "Hiring Ops Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        640,
+        300
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "e49baeda-9bb9-4c1e-818e-40ae5923c932",
+      "name": "Model - Hiring Ops",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        640,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"candidates_summary\": {\"type\": \"string\"}, \"ranking\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"interview_plan\": {\"type\": \"string\"}, \"explanation\": {\"type\": \"string\"}}, \"required\": [\"candidates_summary\", \"explanation\"]}"
+      },
+      "id": "fe5e7f07-ab91-4875-b6ab-bce8b8fe80ed",
+      "name": "Parser - Hiring Ops",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        800,
+        500
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Input Normalization').item.json.payload }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Performance Review Agent (L4) reporting to Culture & Engagement. Analyze employee performance: scoring, improvement plans, promotion recommendations. Return JSON only."
+        }
+      },
+      "id": "ace8dfbc-3300-4da7-9600-c9092dbe6229",
+      "name": "Performance Review Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        920,
+        300
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "dd730b4b-e31f-46bb-abcf-e2d19de4ab72",
+      "name": "Model - Performance Review",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        920,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"performance_score\": {\"type\": \"number\"}, \"improvement_suggestions\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"promotion_recommendations\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"explanation\": {\"type\": \"string\"}}, \"required\": [\"performance_score\", \"explanation\"]}"
+      },
+      "id": "6c2ec151-0a22-4ec5-afe7-b0c94fd6b73f",
+      "name": "Parser - Performance Review",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1080,
+        500
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// HR Final Decision -> universal output contract\nconst cfg = $('Workflow Configuration').item.json;\nconst inp = $('Input Normalization').item.json;\nconst get = (name) => { try { return $(name).item.json || {}; } catch (e) { return {}; } };\nconst chro = get('CHRO Orchestrator Agent');\nconst talent = get('Talent Insights Agent');\nconst culture = get('Culture Engagement Agent');\nconst policy = get('Policy Enforcement Agent');\nconst hiring = get('Hiring Ops Agent');\nconst perf = get('Performance Review Agent');\nconst rank = { low: 1, medium: 2, high: 3 };\nconst risks = [inp.risk_level, chro.risk_level, policy.severity, culture.burnout_risk].filter(Boolean);\nlet risk_level = 'low';\nfor (const r of risks) { if ((rank[r] || 0) > (rank[risk_level] || 0)) risk_level = r; }\nconst policy_block = policy.policy_violation === true && policy.severity === 'high';\nconst decision_status = policy_block ? 'rejected' : (risk_level === 'high' ? 'waiting' : 'approved');\nconst needs_crea = ['medium','high'].includes(risk_level) || policy.policy_violation === true;\nconst founder_needed = risk_level === 'high' || (hiring && (hiring.ranking || []).length > 0);\nconst reason = policy_block ? ('Blocked by HR policy: ' + (policy.violations || []).join('; ')) : ('CHRO: ' + (chro.summary || 'HR review complete'));\nreturn [{ json: {\n  workflow: 'WF-HR', department: 'hr',\n  request_id: inp.request_id, workflow_source: inp.workflow_source, mode: inp.mode,\n  timestamp: new Date().toISOString(),\n  decision_status: decision_status, reason: reason,\n  next_workflow: needs_crea ? cfg.crea_workflow_id : null,\n  next_action: needs_crea ? 'route_to_CREA_WF8' : 'none',\n  confidence: inp.confidence, risk_level: risk_level,\n  crea_status: needs_crea ? 'pending' : 'not_required',\n  founder_approval_status: founder_needed ? (inp.founder_available ? 'requested' : 'required') : 'not_required',\n  execution_result: (inp.mode === 'execute' && decision_status === 'approved') ? 'executed' : 'simulated',\n  payload: inp.payload_obj,\n  analysis: { orchestrator: chro, talent_insights: talent, culture_engagement: culture, policy_enforcement: policy, hiring_ops: hiring, performance_review: perf },\n  logs: ['WF-HR processed ' + inp.request_id, 'risk_level=' + risk_level + ', decision=' + decision_status, needs_crea ? 'CREA review required' : 'CREA not required']\n}}];"
+      },
+      "id": "eebcbee1-0a06-4fe3-a26f-8516a5522b5a",
+      "name": "Final HR Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        400
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Model - CHRO Orchestrator": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CHRO Orchestrator Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser - CHRO Orchestrator": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "CHRO Orchestrator Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model - Talent Insights": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Talent Insights Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser - Talent Insights": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Talent Insights Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model - Culture Engagement": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Culture Engagement Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser - Culture Engagement": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Culture Engagement Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model - Policy Enforcement": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Policy Enforcement Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser - Policy Enforcement": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Policy Enforcement Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model - Hiring Ops": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Hiring Ops Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser - Hiring Ops": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Hiring Ops Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model - Performance Review": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Performance Review Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser - Performance Review": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Performance Review Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Input Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Normalization": {
+      "main": [
+        [
+          {
+            "node": "CHRO Orchestrator Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CHRO Orchestrator Agent": {
+      "main": [
+        [
+          {
+            "node": "Talent Insights Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Talent Insights Agent": {
+      "main": [
+        [
+          {
+            "node": "Culture Engagement Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Culture Engagement Agent": {
+      "main": [
+        [
+          {
+            "node": "Policy Enforcement Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Policy Enforcement Agent": {
+      "main": [
+        [
+          {
+            "node": "Hiring Ops Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hiring Ops Agent": {
+      "main": [
+        [
+          {
+            "node": "Performance Review Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Performance Review Agent": {
+      "main": [
+        [
+          {
+            "node": "Final HR Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

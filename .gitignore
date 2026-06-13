@@ -1,0 +1,15 @@
+# Local cloud-deploy helper — contains your n8n Cloud instance URL + API key slot
+push_to_cloud.ps1
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Local n8n staging / backups / scratch (kept out of the repo)
+_import/
+_backup_original/
+_prefix_backup*/
+*.log
+_*.js

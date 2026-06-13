@@ -1,0 +1,1972 @@
+{
+  "name": "WF: 5- Marketing Intelligence, Content & Campaign Control with CREA Validation",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "request_id"
+            },
+            {
+              "name": "objective"
+            },
+            {
+              "name": "target_market"
+            },
+            {
+              "name": "product_context",
+              "type": "object"
+            },
+            {
+              "name": "mode"
+            }
+          ]
+        }
+      },
+      "id": "d4b11766-15a8-4af3-b4d0-bdc3abab560b",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -6384,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "crea_workflow_id",
+              "value": "q1UDzKI9hUOR816f",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "cfo_workflow_id",
+              "value": "rNv9DzGl7IFHotwO",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "coo_workflow_id",
+              "value": "tQ9crXF3P0NOlWDy",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "wf8_id",
+              "value": "q1UDzKI9hUOR816f",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "eb81c3fd-7f75-4a86-9d86-40eed04b685c",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -6160,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input Validation & Normalization\n// Extracts marketing data from the universal contract payload\n// Validates required fields and normalizes input data\n\nconst items = $input.all();\nconst validatedItems = [];\n\nfor (const item of items) {\n  const contract = item.json;\n  \n  // Extract payload (marketing-specific data)\n  const payload = contract.payload || {};\n  \n  // Validate required fields in payload\n  const requiredFields = ['objective', 'target_market', 'product_context'];\n  const missingFields = requiredFields.filter(field => !payload[field]);\n  \n  if (missingFields.length > 0) {\n    throw new Error(`Missing required payload fields: ${missingFields.join(', ')}`);\n  }\n  \n  // Extract mode from contract (not payload)\n  const mode = contract.mode || 'simulation';\n  \n  // Validate mode is valid\n  const validModes = ['simulation', 'execute'];\n  if (!validModes.includes(mode)) {\n    throw new Error(`Invalid mode: ${mode}. Must be one of: ${validModes.join(', ')}`);\n  }\n  \n  // Generate marketing_id (UUID v4)\n  const marketing_id = `marketing_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;\n  \n  // Get execution metadata\n  const timestamp = new Date().toISOString();\n  const caller_workflow = contract.audit?.workflow_id || 'unknown';\n  \n  // Normalize objectives (ensure it's an array)\n  let normalizedObjectives = payload.objective;\n  if (typeof normalizedObjectives === 'string') {\n    normalizedObjectives = [normalizedObjectives];\n  }\n  \n  // Normalize target market data\n  const normalizedMarket = {\n    primary: payload.target_market.primary || payload.target_market,\n    secondary: payload.target_market.secondary || [],\n    demographics: payload.target_market.demographics || {},\n    psychographics: payload.target_market.psychographics || {}\n  };\n  \n  // Build validated and normalized output\n  const validatedItem = {\n    // Original contract fields (pass through)\n    request_id: contract.request_id,\n    mode: mode,\n    confidence: contract.confidence,\n    risk_level: contract.risk_level,\n    \n    // Marketing-specific fields from payload\n    objective: normalizedObjectives,\n    target_market: normalizedMarket,\n    product_context: payload.product_context,\n    \n    // Metadata\n    marketing_id: marketing_id,\n    timestamp: timestamp,\n    caller_workflow: caller_workflow,\n    approval_required: true,\n    \n    // Additional context if provided in payload\n    budget: payload.budget || null,\n    timeline: payload.timeline || null,\n    constraints: payload.constraints || [],\n    brand_guidelines: payload.brand_guidelines || {},\n    \n    // Test mode flag\n    test_mode: contract.test_mode || false\n  };\n  \n  validatedItems.push({ json: validatedItem });\n}\n\nreturn validatedItems;"
+      },
+      "id": "de03edfd-11ad-414a-84fe-91aa4dd9b501",
+      "name": "Input Validation & Normalization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5488,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Analyzes market demand, competitors, and consumer behavior to provide market insights, opportunities, and risks",
+        "text": "={{ $fromAI('market_context') }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "8e95045e-741a-4326-b5e5-cc58698f00f3",
+      "name": "Market Intelligence Agent Tool",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        -5136,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Identifies trending ingredients, content formats, and channel preferences with confidence scores",
+        "text": "={{ $fromAI(\"trend_context\") }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "673b2698-5c0f-4e7d-98dd-045f2be17352",
+      "name": "Trend Analysis Agent Tool",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        -4848,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Generates raw content ideas based on content strategy",
+        "text": "={{ $fromAI(\"content_strategy\") }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "37d0dbf9-1684-4d2b-b3a2-eb1ecd459be1",
+      "name": "Content Creator Agent Tool",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        -4560,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Creates visual and creative concepts based on content strategy",
+        "text": "={{ $fromAI(\"content_strategy\") }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "c5369332-c8be-4f61-9be5-7bd969287bfb",
+      "name": "Designer Agent Tool",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        -4272,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Writes copy and captions based on content strategy",
+        "text": "={{ $fromAI(\"content_strategy\") }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "a9e7b7f5-5bdf-4e12-b38c-62933d2d8981",
+      "name": "Writer Agent Tool",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        -3984,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Provides SEO keywords and optimization recommendations based on content strategy",
+        "text": "={{ $fromAI(\"content_strategy\") }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "6247b8c2-6a8c-46b9-96c5-c9a759012e67",
+      "name": "SEO Ops Agent Tool",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        -3696,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Plans campaign channels, schedule, budget estimate, and KPIs",
+        "text": "={{ $fromAI(\"campaign_context\") }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "b5995b78-0ee4-4b50-b9e2-e654a701e583",
+      "name": "Campaign Ops Agent Tool",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        -3408,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.request_id + ' | ' + $json.objective + ' | Target: ' + JSON.stringify($json.target_market) + ' | Product: ' + JSON.stringify($json.product_context) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the CMO Orchestrator for a cosmetic brand. Coordinate marketing intelligence, trend analysis, content strategy, and content generation to create data-driven, brand-aligned marketing campaigns. Call tools in sequence: 1) Market Intelligence 2) Trend Analysis 3) Content Strategy 4) Content Creator, Designer, Writer, SEO Ops in parallel 5) Campaign Ops. Return structured JSON with all results. IMPORTANT: You are generating DRAFT content only. All claims require CREA validation before publishing."
+        }
+      },
+      "id": "3a976dc1-d9ac-4903-bdbf-8f20de933bcd",
+      "name": "CMO Orchestrator Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -4112,
+        416
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge content from CMO agent output into publish-ready draft structure\n// Extract all claims for CREA validation\n\nconst cmoOutput = $input.first().json;\n\n// Initialize the publish-ready draft structure\nconst publishDraft = {\n  metadata: {\n    campaignId: cmoOutput.campaignId || `campaign_${Date.now()}`,\n    createdAt: new Date().toISOString(),\n    status: 'pending_validation'\n  },\n  content: {\n    copy: {},\n    creatives: {},\n    seo: {}\n  },\n  claims: [],\n  validationRequired: true\n};\n\n// Extract copy content\nif (cmoOutput.copy) {\n  publishDraft.content.copy = {\n    headline: cmoOutput.copy.headline || '',\n    subheadline: cmoOutput.copy.subheadline || '',\n    bodyText: cmoOutput.copy.bodyText || '',\n    callToAction: cmoOutput.copy.callToAction || '',\n    additionalCopy: cmoOutput.copy.additionalCopy || []\n  };\n}\n\n// Extract creative assets\nif (cmoOutput.creatives) {\n  publishDraft.content.creatives = {\n    images: cmoOutput.creatives.images || [],\n    videos: cmoOutput.creatives.videos || [],\n    graphics: cmoOutput.creatives.graphics || [],\n    designSpecs: cmoOutput.creatives.designSpecs || {}\n  };\n}\n\n// Extract SEO metadata\nif (cmoOutput.seo) {\n  publishDraft.content.seo = {\n    title: cmoOutput.seo.title || '',\n    description: cmoOutput.seo.description || '',\n    keywords: cmoOutput.seo.keywords || [],\n    metaTags: cmoOutput.seo.metaTags || {},\n    structuredData: cmoOutput.seo.structuredData || {}\n  };\n}\n\n// Extract all claims for CREA validation\n// Claims can be found in various parts of the content\nconst extractClaims = (text) => {\n  if (!text) return [];\n  \n  // Pattern to identify potential claims (statements about product benefits, features, performance)\n  const claimPatterns = [\n    /\\b(best|top|leading|#1|first|only|guaranteed|proven|clinically tested)\\b/gi,\n    /\\b(\\d+%|\\d+x)\\s+(better|faster|more|improved|increase|decrease)\\b/gi,\n    /\\b(reduces|eliminates|prevents|cures|treats)\\s+\\w+/gi\n  ];\n  \n  const foundClaims = [];\n  claimPatterns.forEach(pattern => {\n    const matches = text.match(pattern);\n    if (matches) {\n      matches.forEach(match => {\n        foundClaims.push({\n          text: match,\n          context: text.substring(Math.max(0, text.indexOf(match) - 50), Math.min(text.length, text.indexOf(match) + 100)),\n          type: 'auto_detected',\n          requiresValidation: true\n        });\n      });\n    }\n  });\n  \n  return foundClaims;\n};\n\n// Collect claims from all text content\nconst allTextContent = [\n  publishDraft.content.copy.headline,\n  publishDraft.content.copy.subheadline,\n  publishDraft.content.copy.bodyText,\n  publishDraft.content.copy.callToAction,\n  ...(publishDraft.content.copy.additionalCopy || []),\n  publishDraft.content.seo.title,\n  publishDraft.content.seo.description\n].filter(Boolean).join(' ');\n\npublishDraft.claims = extractClaims(allTextContent);\n\n// Add manually specified claims if present in CMO output\nif (cmoOutput.claims && Array.isArray(cmoOutput.claims)) {\n  cmoOutput.claims.forEach(claim => {\n    publishDraft.claims.push({\n      text: claim.text || claim,\n      context: claim.context || '',\n      type: 'manual',\n      requiresValidation: true\n    });\n  });\n}\n\n// Add claim count to metadata\npublishDraft.metadata.claimCount = publishDraft.claims.length;\npublishDraft.metadata.requiresCREAValidation = publishDraft.claims.length > 0;\n\nreturn { json: publishDraft };"
+      },
+      "id": "72d2b757-e0b4-4722-b51a-0b76fb705276",
+      "name": "Content Merge & Preview",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2624,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "q1UDzKI9hUOR816f",
+          "mode": "id",
+          "cachedResultName": "q1UDzKI9hUOR816f"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "claims": "={{ $json.claims }}",
+            "request_id": "={{ $json.metadata.campaignId }}",
+            "mode": "={{ $(\"Input Validation & Normalization\").item.json.mode || 'simulation' }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "676181b1-fa0f-4942-9620-936b57e4df7f",
+      "name": "CREA Claim Validation",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -2400,
+        416
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.status || $json.claims_status || $json.validation_status || \"pending\" }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "32172e0f-be2f-4d6f-b0e2-ff78c27e8fef",
+      "name": "Check CREA Approval",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2176,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "crea_approved",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "status",
+              "value": "blocked",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "blocked_by",
+              "value": "CREA",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "campaign_status",
+              "value": "not_published",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "decision_summary",
+              "value": "CREA rejected claims. Campaign blocked from publishing.",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "crea_rejection_reason",
+              "value": "={{ $json.rejection_reason || $json.error || 'Claims not approved by CREA' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "d36e9a04-7a51-4ceb-84d6-f2fab9bf16e3",
+      "name": "CREA Rejected - Simulation Mode",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -160,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Campaign Planning - Structure campaign execution plan\n// This node processes the CMO Orchestrator Agent output and Campaign Ops results\n// to create a comprehensive campaign plan\n\nconst items = $input.all();\nconst cmoOutput = items[0].json;\n\n// Extract campaign operations data from the CMO output\n// The Campaign Ops Agent Tool should have provided structured campaign data\nconst campaignOpsData = cmoOutput.campaignOps || {};\n\n// Structure the campaign plan\nconst campaignPlan = {\n  campaignId: `campaign_${Date.now()}`,\n  timestamp: new Date().toISOString(),\n  \n  // Campaign Overview\n  overview: {\n    name: campaignOpsData.campaignName || cmoOutput.campaignName || 'Marketing Campaign',\n    objective: campaignOpsData.objective || cmoOutput.objective || 'Drive engagement and conversions',\n    targetAudience: campaignOpsData.targetAudience || cmoOutput.targetAudience || [],\n    duration: campaignOpsData.duration || '30 days'\n  },\n  \n  // Marketing Channels\n  channels: campaignOpsData.channels || [\n    {\n      name: 'Email Marketing',\n      platform: 'email',\n      tactics: ['Newsletter', 'Drip Campaign', 'Promotional Emails'],\n      priority: 'high'\n    },\n    {\n      name: 'Social Media',\n      platform: 'social',\n      tactics: ['Organic Posts', 'Paid Ads', 'Influencer Partnerships'],\n      priority: 'high'\n    },\n    {\n      name: 'Content Marketing',\n      platform: 'web',\n      tactics: ['Blog Posts', 'SEO Content', 'Landing Pages'],\n      priority: 'medium'\n    },\n    {\n      name: 'Paid Advertising',\n      platform: 'ads',\n      tactics: ['Google Ads', 'Social Media Ads', 'Display Ads'],\n      priority: 'medium'\n    }\n  ],\n  \n  // Campaign Schedule\n  schedule: campaignOpsData.schedule || {\n    phases: [\n      {\n        phase: 'Preparation',\n        duration: '7 days',\n        activities: ['Content finalization', 'Asset creation', 'Platform setup']\n      },\n      {\n        phase: 'Launch',\n        duration: '3 days',\n        activities: ['Campaign activation', 'Initial monitoring', 'Quick optimizations']\n      },\n      {\n        phase: 'Optimization',\n        duration: '14 days',\n        activities: ['Performance monitoring', 'A/B testing', 'Budget reallocation']\n      },\n      {\n        phase: 'Scale',\n        duration: '6 days',\n        activities: ['Expand successful tactics', 'Increase budget', 'Broaden reach']\n      }\n    ],\n    milestones: [\n      { date: 'Day 7', milestone: 'Campaign Launch' },\n      { date: 'Day 14', milestone: 'First Optimization Review' },\n      { date: 'Day 21', milestone: 'Mid-Campaign Assessment' },\n      { date: 'Day 30', milestone: 'Campaign Completion' }\n    ]\n  },\n  \n  // Budget Estimate\n  budget: campaignOpsData.budget || {\n    total: 50000,\n    currency: 'USD',\n    breakdown: [\n      { channel: 'Email Marketing', amount: 5000, percentage: 10 },\n      { channel: 'Social Media', amount: 15000, percentage: 30 },\n      { channel: 'Content Marketing', amount: 10000, percentage: 20 },\n      { channel: 'Paid Advertising', amount: 20000, percentage: 40 }\n    ],\n    contingency: 5000,\n    contingencyPercentage: 10\n  },\n  \n  // Key Performance Indicators (KPIs)\n  kpis: campaignOpsData.kpis || [\n    {\n      metric: 'Reach',\n      target: 100000,\n      unit: 'impressions',\n      priority: 'high'\n    },\n    {\n      metric: 'Engagement Rate',\n      target: 5,\n      unit: 'percentage',\n      priority: 'high'\n    },\n    {\n      metric: 'Click-Through Rate (CTR)',\n      target: 3,\n      unit: 'percentage',\n      priority: 'high'\n    },\n    {\n      metric: 'Conversion Rate',\n      target: 2,\n      unit: 'percentage',\n      priority: 'critical'\n    },\n    {\n      metric: 'Cost Per Acquisition (CPA)',\n      target: 50,\n      unit: 'USD',\n      priority: 'critical'\n    },\n    {\n      metric: 'Return on Ad Spend (ROAS)',\n      target: 4,\n      unit: 'ratio',\n      priority: 'critical'\n    },\n    {\n      metric: 'Lead Generation',\n      target: 1000,\n      unit: 'leads',\n      priority: 'medium'\n    }\n  ],\n  \n  // Content Assets (from previous nodes)\n  contentAssets: {\n    marketIntelligence: cmoOutput.marketIntelligence || {},\n    trendAnalysis: cmoOutput.trendAnalysis || {},\n    creativeContent: cmoOutput.creativeContent || {},\n    designAssets: cmoOutput.designAssets || {},\n    copywriting: cmoOutput.copywriting || {},\n    seoOptimization: cmoOutput.seoOptimization || {}\n  },\n  \n  // Execution Readiness\n  readiness: {\n    contentReady: true,\n    platformsConfigured: false,\n    budgetApproved: false,\n    teamAssigned: false,\n    trackingSetup: false,\n    creaValidated: true // Will be updated by CREA validation\n  }\n};\n\nreturn [{ json: campaignPlan }];"
+      },
+      "id": "c82c2a0e-1e64-4af2-ae94-dfecfae1f2ca",
+      "name": "Campaign Planning",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1056,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $(\"Input Validation & Normalization\").item.json.mode }}",
+              "rightValue": "execute",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.crea_approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-3",
+              "leftValue": "={{ $(\"Input Validation & Normalization\").item.json.confidence }}",
+              "rightValue": "0.9",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7d93d072-27ef-47ee-82d1-54e86ea8cdf2",
+      "name": "Execution Safety Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -832,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "completed",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "campaign_status",
+              "value": "published",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "execution_timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "decision_summary",
+              "value": "Campaign published successfully. All gates passed: mode=execute, CREA approved, confidence >= 0.9",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "0bb783c3-3fae-430e-a36d-495bbb9d8b62",
+      "name": "Execute Campaign",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -608,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "simulation_only",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "campaign_status",
+              "value": "draft",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "execution_note",
+              "value": "Simulation mode or gates not passed - no external publishing",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "decision_summary",
+              "value": "Campaign planned but not published",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "74e89368-57be-4bbc-8a70-73655419ce34",
+      "name": "Simulation Only",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -608,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Performance Tracking Setup\n// Define tracking metrics, reporting frequency, and attribution model\n\nconst items = $input.all();\nconst trackingConfig = [];\n\nfor (const item of items) {\n  const campaignData = item.json;\n  \n  // Define performance tracking metrics\n  const metrics = {\n    engagement: {\n      impressions: { enabled: true, threshold: 1000 },\n      clicks: { enabled: true, threshold: 100 },\n      ctr: { enabled: true, threshold: 2.5 }, // Click-through rate %\n      shares: { enabled: true, threshold: 50 },\n      comments: { enabled: true, threshold: 25 },\n      saves: { enabled: true, threshold: 30 }\n    },\n    conversion: {\n      leads: { enabled: true, threshold: 10 },\n      signups: { enabled: true, threshold: 5 },\n      purchases: { enabled: true, threshold: 1 },\n      conversionRate: { enabled: true, threshold: 1.5 } // %\n    },\n    revenue: {\n      totalRevenue: { enabled: true, threshold: 1000 },\n      averageOrderValue: { enabled: true, threshold: 50 },\n      roi: { enabled: true, threshold: 150 }, // Return on investment %\n      costPerAcquisition: { enabled: true, threshold: 25 }\n    },\n    brand: {\n      brandMentions: { enabled: true, threshold: 100 },\n      sentimentScore: { enabled: true, threshold: 0.7 }, // 0-1 scale\n      brandAwareness: { enabled: true, threshold: 5 } // % lift\n    }\n  };\n  \n  // Define reporting frequency\n  const reportingSchedule = {\n    realtime: {\n      enabled: true,\n      interval: '15min',\n      channels: ['dashboard', 'slack']\n    },\n    daily: {\n      enabled: true,\n      time: '09:00',\n      timezone: 'America/New_York',\n      recipients: ['marketing-team@company.com'],\n      format: 'summary'\n    },\n    weekly: {\n      enabled: true,\n      day: 'Monday',\n      time: '10:00',\n      timezone: 'America/New_York',\n      recipients: ['leadership@company.com'],\n      format: 'detailed'\n    },\n    monthly: {\n      enabled: true,\n      dayOfMonth: 1,\n      time: '09:00',\n      timezone: 'America/New_York',\n      recipients: ['executives@company.com'],\n      format: 'executive-summary'\n    }\n  };\n  \n  // Define attribution model\n  const attributionModel = {\n    type: 'multi-touch', // Options: first-touch, last-touch, linear, time-decay, position-based, multi-touch\n    lookbackWindow: 30, // days\n    touchpointWeighting: {\n      firstTouch: 0.30,\n      middleTouch: 0.20,\n      lastTouch: 0.50\n    },\n    channelAttribution: {\n      organic: { weight: 1.0 },\n      paid: { weight: 1.0 },\n      social: { weight: 1.0 },\n      email: { weight: 1.0 },\n      referral: { weight: 1.0 },\n      direct: { weight: 0.5 }\n    },\n    crossDeviceTracking: true,\n    cookieDuration: 90 // days\n  };\n  \n  // Define tracking tools and integrations\n  const trackingTools = {\n    analytics: {\n      googleAnalytics: { enabled: true, propertyId: 'UA-XXXXXXXXX-X' },\n      mixpanel: { enabled: false },\n      amplitude: { enabled: false }\n    },\n    advertising: {\n      googleAds: { enabled: true, conversionTracking: true },\n      facebookPixel: { enabled: true, pixelId: 'XXXXXXXXXXXXXXXXX' },\n      linkedInInsight: { enabled: true, partnerId: 'XXXXXXX' }\n    },\n    heatmaps: {\n      hotjar: { enabled: true, siteId: 'XXXXXXX' },\n      crazyEgg: { enabled: false }\n    },\n    crm: {\n      salesforce: { enabled: true, campaignSync: true },\n      hubspot: { enabled: false }\n    }\n  };\n  \n  // Define alert thresholds\n  const alerts = {\n    performance: {\n      underperforming: {\n        enabled: true,\n        threshold: -20, // % below target\n        notification: ['email', 'slack']\n      },\n      overperforming: {\n        enabled: true,\n        threshold: 50, // % above target\n        notification: ['email', 'slack']\n      }\n    },\n    budget: {\n      spendRate: {\n        enabled: true,\n        threshold: 80, // % of budget\n        notification: ['email', 'slack']\n      },\n      costPerResult: {\n        enabled: true,\n        threshold: 25, // % above target CPA\n        notification: ['email']\n      }\n    },\n    anomaly: {\n      enabled: true,\n      sensitivity: 'medium', // low, medium, high\n      notification: ['slack']\n    }\n  };\n  \n  trackingConfig.push({\n    json: {\n      campaignId: campaignData.campaignId || 'campaign-' + Date.now(),\n      campaignName: campaignData.campaignName || 'Untitled Campaign',\n      trackingSetup: {\n        metrics,\n        reportingSchedule,\n        attributionModel,\n        trackingTools,\n        alerts,\n        setupTimestamp: new Date().toISOString(),\n        status: 'configured',\n        note: 'Performance tracking configured but not yet activated'\n      }\n    }\n  });\n}\n\nreturn trackingConfig;"
+      },
+      "id": "961638cf-5386-4ae3-856b-d6d5e21aab54",
+      "name": "Performance Tracking Setup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -384,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"market_insights\": [], \"opportunities\": [], \"risks\": []}"
+      },
+      "id": "3a39526d-bff5-4ac5-a21c-86760fdc1caf",
+      "name": "Market Intelligence Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -4976,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"trends\": [], \"trend_confidence\": 0.0}"
+      },
+      "id": "db181619-22cf-4fa5-8095-656aba715a67",
+      "name": "Trend Analysis Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -4688,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"content_ideas\": []}"
+      },
+      "id": "9ce56ab8-bea4-41a5-b406-139bcb3cca25",
+      "name": "Content Creator Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -4400,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"creatives\": []}"
+      },
+      "id": "e9d2aa65-c43e-4213-9193-62a1b3322ee8",
+      "name": "Designer Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -4112,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"copy\": [],\n\t\"captions\": []\n}"
+      },
+      "id": "9dea084e-c6c7-4179-a787-fff6420e4290",
+      "name": "Writer Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -3824,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"keywords\": [], \"seo_metadata\": {}}"
+      },
+      "id": "dc5c4ef7-d18c-4b42-a2a7-bdc264e27005",
+      "name": "SEO Ops Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -3536,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"campaign_plan\": {}, \"kpis\": []}"
+      },
+      "id": "b7346dbd-a57d-4ce3-9c01-cff368e5f998",
+      "name": "Campaign Ops Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -3248,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"market_intelligence\": {}, \"trend_analysis\": {}, \"content_strategy\": {}, \"content_generation\": {}, \"campaign_ops\": {}}"
+      },
+      "id": "7828e382-37b7-4a7c-a54b-3f3497a95eb3",
+      "name": "CMO Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -2832,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Defines content strategy including key messages, approved claims draft, tone, and channels based on market intelligence and trends",
+        "text": "={{ $fromAI(\"market_and_trend_data\") }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "b9ae2fdf-239f-4d5e-b7ac-5146a972dff0",
+      "name": "Content Strategy Agent Tool",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        -3120,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"key_messages\": [], \"approved_claims_draft\": [], \"tone\": \"\", \"channels\": []}"
+      },
+      "id": "a742fe5c-8fc2-4add-b33d-88e6521f9f29",
+      "name": "Content Strategy Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -2976,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "crea_approved",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "crea_reviewed",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-3",
+              "name": "crea_feedback",
+              "value": "={{ $json.feedback || $json.approved_claims || [] }}",
+              "type": "array"
+            },
+            {
+              "id": "id-4",
+              "name": "crea_validation_timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "37bf4d26-d5c0-47e8-b0fa-fe636e380511",
+      "name": "CREA Approved - Set Flag",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1952,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Universal Contract Validation with Mock Data Fallback\n// Validates the universal contract structure from WF-0\n// If fields are missing (standalone test mode), provides mock data\n\nconst items = $input.all();\nconst validatedItems = [];\n\nfor (const item of items) {\n  const contract = item.json;\n  \n  // Define required fields for universal contract\n  const requiredFields = [\n    'request_id',\n    'mode',\n    'confidence',\n    'risk_level',\n    'payload'\n  ];\n  \n  // Check for missing required fields\n  const missingFields = requiredFields.filter(field => {\n    return contract[field] === undefined || contract[field] === null || contract[field] === '';\n  });\n  \n  // Check for audit metadata\n  const hasAuditMetadata = contract.audit && \n    contract.audit.timestamp && \n    contract.audit.workflow_id;\n  \n  if (!hasAuditMetadata) {\n    missingFields.push('audit');\n  }\n  \n  // If fields are missing, provide mock data for standalone testing\n  if (missingFields.length > 0) {\n    console.log('Missing contract fields detected. Using mock data for standalone test mode.');\n    \n    const mockContract = {\n      validation_failed: false,\n      validation_reason: 'Mock data provided for standalone test mode',\n      test_mode: true,\n      \n      // Mock universal contract fields\n      request_id: contract.request_id || `test_req_${Date.now()}`,\n      mode: contract.mode || 'simulation',\n      confidence: contract.confidence !== undefined ? contract.confidence : 0.95,\n      risk_level: contract.risk_level || 'low',\n      \n      // Mock payload with marketing data\n      payload: contract.payload || {\n        objective: contract.objective || 'Launch new anti-aging serum campaign',\n        target_market: contract.target_market || {\n          primary: 'Women 35-55',\n          demographics: { age: '35-55', income: 'middle to high' },\n          psychographics: { interests: ['skincare', 'wellness', 'beauty'] }\n        },\n        product_context: contract.product_context || {\n          name: 'Youth Restore Serum',\n          category: 'Anti-aging skincare',\n          key_ingredients: ['Retinol', 'Hyaluronic Acid', 'Vitamin C'],\n          benefits: ['Reduces fine lines', 'Improves skin texture', 'Brightens complexion']\n        },\n        budget: contract.budget || 50000,\n        timeline: contract.timeline || '30 days'\n      },\n      \n      // Mock audit metadata\n      audit: contract.audit || {\n        timestamp: new Date().toISOString(),\n        workflow_id: 'WF-0-MOCK',\n        performed_by: 'standalone_test',\n        notes: ['Mock data generated for standalone testing']\n      }\n    };\n    \n    validatedItems.push({ json: mockContract });\n  } else {\n    // All required fields present - return validated contract\n    validatedItems.push({\n      json: {\n        validation_failed: false,\n        validation_reason: 'Contract validation successful',\n        test_mode: false,\n        \n        // Pass through all contract fields\n        request_id: contract.request_id,\n        mode: contract.mode,\n        confidence: contract.confidence,\n        risk_level: contract.risk_level,\n        payload: contract.payload,\n        audit: contract.audit,\n        \n        // Include any additional fields that may be present\n        ...contract\n      }\n    });\n  }\n}\n\nreturn validatedItems;"
+      },
+      "id": "a43ee3ee-51be-4e66-8594-88e409311f6d",
+      "name": "Universal Contract Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5936,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "WORKFLOW REJECTED: Invalid or incomplete universal contract from WF-0. Required fields: request_id, mode, confidence, risk_level, payload, audit metadata."
+      },
+      "id": "8451da80-9198-4c97-a3d1-cef713f8e1ad",
+      "name": "STOP - Invalid Contract",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -5488,
+        608
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.validation_failed }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9b366026-9a4f-4890-ada3-3606088f0a19",
+      "name": "Contract Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5712,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $(\"Input Validation & Normalization\").item.json.mode }}",
+              "rightValue": "execute",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "78b13a72-eeba-4383-bbe3-ba6d1ce9f129",
+      "name": "Campaign Publish Guard",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1728,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "simulation_only",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "campaign_status",
+              "value": "not_published",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "decision_summary",
+              "value": "Simulation mode – campaign NOT executable. Publishing blocked.",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "publish_blocked",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-5",
+              "name": "block_reason",
+              "value": "mode != execute",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "2b1c3b21-c93e-4aff-8482-fc9bacb8a60d",
+      "name": "Block Publishing - Simulation Mode",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -160,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $(\"Input Validation & Normalization\").item.json.confidence }}",
+              "rightValue": "0.9",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ed7053bc-d378-42b4-b110-9f12511c994f",
+      "name": "Marketing Confidence Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1504,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "paused",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "decision",
+              "value": "NO-PUBLISH",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "human_approval_required",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-4",
+              "name": "decision_summary",
+              "value": "System confidence below 90% threshold for autonomous marketing. Human approval required.",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "campaign_status",
+              "value": "not_published",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "ce0f5efe-70fe-411f-aebe-47f52f4fee7b",
+      "name": "Pause - Low Confidence",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -160,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.crea_approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "adf5bd1f-caf0-4565-9e70-1165492f9bf4",
+      "name": "CREA Absolute Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1280,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "CAMPAIGN BLOCKED: CREA approval required before marketing publish. No fallback. No bypass. No exceptions."
+      },
+      "id": "2316db2a-091f-454e-8a7e-c982a3decb9f",
+      "name": "STOP - CREA Blocked",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -832,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "blocked",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "blocked_by",
+              "value": "CREA",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "decision_summary",
+              "value": "CREA rejection - campaign blocked. No bypass allowed.",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "campaign_status",
+              "value": "not_published",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "crea_approved",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "8f809686-a87f-42f2-9d22-76d0c8107b7c",
+      "name": "Set CREA Block Status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1056,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Final Output Sanitization & Normalization\n// ONLY reflect decisions already made by gates - NO reinterpretation\n// Confidence MUST come from WF-0 - NEVER recalculated\n\nconst items = $input.all();\nconst sanitizedOutputs = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Extract core identifiers\n  const workflow_id = 'WF-5';\n  const request_id = data.request_id || data.audit_request_id || `req_${Date.now()}`;\n  \n  // CRITICAL: Confidence MUST come from validated input data\n  // The Input Validation & Normalization node already extracted confidence from the contract\n  let confidence = data.audit_confidence || data.confidence;\n  \n  // If still not found, try to get from Input Validation node output\n  if (confidence === undefined || confidence === null) {\n    const inputValidationData = $('Input Validation & Normalization')?.first()?.json;\n    if (inputValidationData) {\n      confidence = inputValidationData.confidence;\n    }\n  }\n  \n  // In test mode with mock data, confidence should be present\n  if (confidence === undefined || confidence === null) {\n    confidence = 0.95; // Default for test mode\n  }\n  \n  // Status and campaign_status - reflect actual decisions made, no inference\n  const status = data.status || data.audit_status || 'completed';\n  const campaign_status = data.campaign_status || 'planned';\n  \n  // Decision summary - use what was already set\n  const decision_summary = {\n    workflow: 'WF-5',\n    action: campaign_status,\n    reason: data.decision_summary || data.execution_note || data.crea_rejection_reason || 'Marketing campaign processed',\n    timestamp: new Date().toISOString()\n  };\n  \n  // Risk level - use what was already determined, no recalculation\n  const risk_level = data.risk_level || data.audit_risk_level || 'low';\n  \n  // Mode - get from audit or data\n  const mode = data.mode || data.audit_mode || 'simulation';\n  \n  // CREA status - reflect actual CREA decision\n  const crea_reviewed = data.crea_reviewed !== undefined ? data.crea_reviewed : false;\n  const crea_approved = data.crea_approved === true || data.audit_crea_approved === true;\n  \n  // Human approval - use what was already set by gates\n  const human_approval_required = data.human_approval_required === true;\n  \n  // Blocked by - if set, preserve it\n  const blocked_by = data.blocked_by || null;\n  \n  // Build approvals array from actual decisions\n  const approvals = [];\n  \n  if (crea_reviewed) {\n    approvals.push({\n      type: 'crea_validation',\n      status: crea_approved ? 'approved' : 'rejected',\n      timestamp: data.crea_validation_timestamp || new Date().toISOString(),\n      feedback: data.crea_feedback || data.crea_rejection_reason || null\n    });\n  }\n  \n  if (data.execution_timestamp) {\n    approvals.push({\n      type: 'execution_approval',\n      status: 'approved',\n      timestamp: data.execution_timestamp,\n      approved_by: 'system'\n    });\n  }\n  \n  // Build audit object\n  const audit = {\n    timestamp: data.audit_timestamp || new Date().toISOString(),\n    performed_by: data.audit_performed_by || 'WF-5',\n    workflow_name: 'Marketing Intelligence, Content & Campaign Control with CREA Validation',\n    workflow_id: data.audit_workflow_id || 'WF-5',\n    execution_id: data.audit_execution_id || $execution.id || 'unknown',\n    mode: mode,\n    notes: []\n  };\n  \n  // Add audit notes based on actual decisions\n  if (crea_reviewed) {\n    audit.notes.push(`CREA validation: ${crea_approved ? 'approved' : 'rejected'}`);\n  }\n  \n  if (blocked_by) {\n    audit.notes.push(`Blocked by: ${blocked_by}`);\n  }\n  \n  if (mode === 'simulation') {\n    audit.notes.push('Campaign executed in simulation mode - no external publishing');\n  }\n  \n  if (human_approval_required) {\n    audit.notes.push('Human approval required');\n  }\n  \n  // Build final sanitized output - NO reinterpretation\n  const sanitizedOutput = {\n    workflow_id,\n    request_id,\n    status,\n    campaign_status,\n    decision_summary,\n    confidence,\n    risk_level,\n    crea_reviewed,\n    crea_approved,\n    human_approval_required,\n    approvals,\n    audit\n  };\n  \n  // Add blocked_by if present\n  if (blocked_by) {\n    sanitizedOutput.blocked_by = blocked_by;\n  }\n  \n  sanitizedOutputs.push({ json: sanitizedOutput });\n}\n\nreturn sanitizedOutputs;"
+      },
+      "id": "059dfd82-4dca-488e-96ad-93b366061f9c",
+      "name": "Final Output Sanitization & Normalization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        240
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "id": "08f35c5c-264d-4395-956d-99b1e234f52a",
+      "name": "Merge All Paths to Final Output",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        64,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "audit_timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "audit_request_id",
+              "value": "={{ $json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "audit_mode",
+              "value": "={{ $json.mode }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "audit_confidence",
+              "value": "={{ $(\"Input Validation & Normalization\").item.json.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "id-5",
+              "name": "audit_risk_level",
+              "value": "={{ $json.risk_level }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "audit_crea_decision",
+              "value": "={{ $json.crea_approved ? 'approved' : 'not_approved' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-7",
+              "name": "audit_publish_decision",
+              "value": "={{ $json.campaign_status }}",
+              "type": "string"
+            },
+            {
+              "id": "id-8",
+              "name": "audit_performed_by",
+              "value": "WF-5",
+              "type": "string"
+            },
+            {
+              "id": "id-9",
+              "name": "audit_workflow_id",
+              "value": "WF-5",
+              "type": "string"
+            },
+            {
+              "id": "id-10",
+              "name": "audit_execution_id",
+              "value": "={{ $execution.id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-11",
+              "name": "audit_crea_approved",
+              "value": "={{ $json.crea_approved }}",
+              "type": "boolean"
+            },
+            {
+              "id": "id-12",
+              "name": "audit_status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "22f46bdf-fd2c-484c-abc6-7e7d6049b74e",
+      "name": "Audit Trail Logger",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -160,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "0d8a96de-f960-435d-9982-e9455befbcc6",
+      "name": "OpenAI CMO Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -5264,
+        640
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "ad2b0123-8bc9-4d70-a76a-3303795d77a6",
+      "name": "OpenAI Market Intelligence Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -5120,
+        848
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "391ba1b9-12ef-4d21-9067-01e4fcb9a417",
+      "name": "OpenAI Trend Analysis Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -4848,
+        848
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "b11f438f-bbb4-4ec1-b56b-74d292f56e1c",
+      "name": "OpenAI Content Creator Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -4560,
+        848
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "008dc795-0411-4ad9-902a-819f012f9fbf",
+      "name": "OpenAI Designer Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -4272,
+        848
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "4021fd64-b9a8-40cf-b09a-6d39ff5ebfe4",
+      "name": "OpenAI Writer Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -3984,
+        848
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "d43eff29-583c-4291-83f7-21340ae7d972",
+      "name": "OpenAI SEO Ops Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -3696,
+        848
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "1de38874-d54a-4e0b-9440-d27d8ffe2cb6",
+      "name": "OpenAI Campaign Ops Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -3408,
+        848
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "299c7553-b366-4d34-8221-d2688797f624",
+      "name": "OpenAI Content Strategy Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -3120,
+        848
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Validation & Normalization": {
+      "main": [
+        [
+          {
+            "node": "CMO Orchestrator Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CMO Orchestrator Agent": {
+      "main": [
+        [
+          {
+            "node": "Content Merge & Preview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Merge & Preview": {
+      "main": [
+        [
+          {
+            "node": "CREA Claim Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREA Claim Validation": {
+      "main": [
+        [
+          {
+            "node": "Check CREA Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check CREA Approval": {
+      "main": [
+        [
+          {
+            "node": "CREA Approved - Set Flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CREA Rejected - Simulation Mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Campaign Planning": {
+      "main": [
+        [
+          {
+            "node": "Execution Safety Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execution Safety Gate": {
+      "main": [
+        [
+          {
+            "node": "Execute Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Simulation Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Campaign": {
+      "main": [
+        [
+          {
+            "node": "Performance Tracking Setup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulation Only": {
+      "main": [
+        [
+          {
+            "node": "Performance Tracking Setup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREA Rejected - Simulation Mode": {
+      "main": [
+        [
+          {
+            "node": "Merge All Paths to Final Output",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "CMO Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "CMO Orchestrator Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Market Intelligence Agent Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "CMO Orchestrator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trend Analysis Agent Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "CMO Orchestrator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Creator Agent Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "CMO Orchestrator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Designer Agent Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "CMO Orchestrator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Writer Agent Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "CMO Orchestrator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SEO Ops Agent Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "CMO Orchestrator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Campaign Ops Agent Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "CMO Orchestrator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Market Intelligence Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Market Intelligence Agent Tool",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trend Analysis Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Trend Analysis Agent Tool",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Creator Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Content Creator Agent Tool",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Designer Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Designer Agent Tool",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Writer Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Writer Agent Tool",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SEO Ops Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "SEO Ops Agent Tool",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Campaign Ops Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Campaign Ops Agent Tool",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Strategy Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Content Strategy Agent Tool",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Strategy Agent Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "CMO Orchestrator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Universal Contract Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Universal Contract Validation": {
+      "main": [
+        [
+          {
+            "node": "Contract Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contract Valid?": {
+      "main": [
+        [
+          {
+            "node": "Input Validation & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "STOP - Invalid Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREA Approved - Set Flag": {
+      "main": [
+        [
+          {
+            "node": "Campaign Publish Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Campaign Publish Guard": {
+      "main": [
+        [
+          {
+            "node": "Marketing Confidence Gate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Block Publishing - Simulation Mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marketing Confidence Gate": {
+      "main": [
+        [
+          {
+            "node": "CREA Absolute Gate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pause - Low Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREA Absolute Gate": {
+      "main": [
+        [
+          {
+            "node": "Campaign Planning",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set CREA Block Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set CREA Block Status": {
+      "main": [
+        [
+          {
+            "node": "STOP - CREA Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Performance Tracking Setup": {
+      "main": [
+        [
+          {
+            "node": "Audit Trail Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audit Trail Logger": {
+      "main": [
+        [
+          {
+            "node": "Merge All Paths to Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Publishing - Simulation Mode": {
+      "main": [
+        [
+          {
+            "node": "Merge All Paths to Final Output",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Pause - Low Confidence": {
+      "main": [
+        [
+          {
+            "node": "Merge All Paths to Final Output",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge All Paths to Final Output": {
+      "main": [
+        [
+          {
+            "node": "Final Output Sanitization & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI CMO Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CMO Orchestrator Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Market Intelligence Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Market Intelligence Agent Tool",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Trend Analysis Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Trend Analysis Agent Tool",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Content Creator Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Content Creator Agent Tool",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Designer Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Designer Agent Tool",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Writer Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Writer Agent Tool",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI SEO Ops Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "SEO Ops Agent Tool",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Campaign Ops Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Campaign Ops Agent Tool",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Content Strategy Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Content Strategy Agent Tool",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "6198fd27-da4a-40a2-a1b7-3eacbd155fdd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3429972c090232ef84f3ff1dd6eeec63678f80651e94dd9310cf34a5fce38712"
+  },
+  "id": "IYl2NVikGCyySSU2",
+  "tags": []
+}

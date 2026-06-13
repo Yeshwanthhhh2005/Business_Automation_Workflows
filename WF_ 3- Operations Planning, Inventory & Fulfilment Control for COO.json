@@ -1,0 +1,1847 @@
+{
+  "name": "WF: 3- Operations Planning, Inventory & Fulfilment Control for COO",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "request_id"
+            },
+            {
+              "name": "mode"
+            },
+            {
+              "name": "confidence",
+              "type": "number"
+            },
+            {
+              "name": "risk_level"
+            },
+            {
+              "name": "payload",
+              "type": "object"
+            },
+            {
+              "name": "founder_available",
+              "type": "boolean"
+            },
+            {
+              "name": "crea_approval",
+              "type": "boolean"
+            },
+            {
+              "name": "audit",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "id": "e27672f0-00c9-497e-9a14-857e6e4c19c1",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -5792,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "safety_stock_threshold",
+              "value": 0.2,
+              "type": "number"
+            },
+            {
+              "id": "id-2",
+              "name": "reorder_buffer_multiplier",
+              "value": 1.5,
+              "type": "number"
+            },
+            {
+              "id": "id-3",
+              "name": "high_risk_delay_days",
+              "value": 14,
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "cfo_approval_threshold",
+              "value": 10000,
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "6511df13-f501-4f68-a470-cf97d906e8ec",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -5568,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input Validation & Normalization\n// Validates incoming data and normalizes it into a standard structure\n\nconst items = $input.all();\n\n// Check if we have input\nif (!items || items.length === 0) {\n  return [{\n    json: {\n      error: true,\n      message: \"No input data received\",\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\nconst inputData = items[0].json;\n\n// Extract contract data if present\nconst contractData = inputData.contract || {};\n\n// Define mandatory fields\nconst mandatoryFields = ['request_id', 'trigger_type', 'sku_list', 'current_stock', 'mode'];\n\n// Check for missing mandatory fields\nconst missingFields = mandatoryFields.filter(field => !inputData[field]);\n\nif (missingFields.length > 0) {\n  return [{\n    json: {\n      error: true,\n      message: `Missing mandatory fields: ${missingFields.join(', ')}`,\n      missing_fields: missingFields,\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\n// Generate UUID for operations_id\nfunction generateUUID() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {\n    const r = Math.random() * 16 | 0;\n    const v = c === 'x' ? r : (r & 0x3 | 0x8);\n    return v.toString(16);\n  });\n}\n\n// Normalize SKU list into standard structure\nfunction normalizeSKUList(skuList) {\n  if (Array.isArray(skuList)) {\n    return skuList.map(sku => {\n      if (typeof sku === 'string') {\n        return { sku_code: sku };\n      }\n      return {\n        sku_code: sku.sku_code || sku.sku || sku.code,\n        quantity: sku.quantity || null,\n        priority: sku.priority || 'normal'\n      };\n    });\n  }\n  return [];\n}\n\n// Extract caller workflow from execution metadata\nconst callerWorkflow = $execution.customData?.caller_workflow || \n                       $execution.mode === 'manual' ? 'manual_trigger' : 'unknown';\n\n// Build normalized output\nconst normalizedData = {\n  operations_id: generateUUID(),\n  request_id: inputData.request_id || contractData.request_id,\n  trigger_type: inputData.trigger_type,\n  sku_list: normalizeSKUList(inputData.sku_list),\n  current_stock: inputData.current_stock,\n  mode: inputData.mode || contractData.mode,\n  approval_required: false,\n  caller_workflow: callerWorkflow,\n  timestamp: new Date().toISOString(),\n  validation_status: 'passed',\n  // Pass through optional fields if present\n  warehouse_location: inputData.warehouse_location || null,\n  priority_level: inputData.priority_level || 'normal',\n  additional_context: inputData.additional_context || {},\n  // Include contract fields in normalized output\n  contract: {\n    confidence: contractData.confidence || null,\n    risk_level: contractData.risk_level || null,\n    contract_valid: contractData.contract_valid || null,\n    validation_timestamp: contractData.validation_timestamp || null\n  }\n};\n\nreturn [{ json: normalizedData }];"
+      },
+      "id": "dc0e6eb1-efa5-4f9c-9d24-e74fb8cc3fc7",
+      "name": "Input Validation & Normalization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4224,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the following data and provide demand forecasts:\n\nSKU List: {{ $json.sku_list }}\nCurrent Stock: {{ $json.current_stock }}\nTrigger Type: {{ $json.trigger_type }}\n\nProvide forecasts for 30, 60, and 90 days with confidence scores.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a Demand Forecasting Agent for a cosmetic brand operations system.\n\nYour task is to:\n1. Analyze current stock levels and SKU data\n2. Consider trigger type (sales_spike, new_product, low_inventory)\n3. Generate demand forecasts for 30, 60, and 90 day periods\n4. Calculate confidence scores based on data quality and historical patterns\n5. Account for seasonality, trends, and market conditions\n6. Return structured JSON output with forecasts and confidence metrics\n\nBe conservative with forecasts when confidence is low. Factor in cosmetic industry trends and product lifecycles."
+        }
+      },
+      "id": "5d96cc2f-7ad8-4d3f-ad89-af55b4a3c33e",
+      "name": "Demand Forecasting Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -4000,
+        704
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"forecast_30d\": {\n      \"type\": \"object\"\n    },\n    \"forecast_60d\": {\n      \"type\": \"object\"\n    },\n    \"forecast_90d\": {\n      \"type\": \"object\"\n    },\n    \"confidence_score\": {\n      \"type\": \"number\",\n      \"minimum\": 0,\n      \"maximum\": 1\n    }\n  }\n}"
+      },
+      "id": "223b36bb-174c-45a4-96a6-4976a0173b21",
+      "name": "Demand Forecast Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -3872,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "34989568-311e-406a-be2c-338d8d70dbb4",
+      "name": "Demand Forecast Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -4000,
+        928
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Evaluate supply chain for the following:\n\nSKU List: {{ $json.sku_list }}\nDemand Forecast: {{ $json.output }}\nTrigger Type: {{ $json.trigger_type }}\n\nAnalyze supplier reliability, delay risks, and backup options.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a Supply Chain Intelligence Agent for a cosmetic brand operations system.\n\nYour task is to:\n1. Evaluate supplier reliability for requested SKUs\n2. Assess delay probability based on current supply chain conditions\n3. Identify risk levels (low, medium, high) for each supplier\n4. Recommend preferred suppliers based on reliability, cost, and lead time\n5. Provide backup supplier options for high-risk scenarios\n6. Consider geopolitical factors, shipping routes, and seasonal impacts\n7. Return structured JSON output with supplier recommendations and risk assessment\n\nPrioritize reliability over cost for critical SKUs. Always provide backup options for high-risk suppliers."
+        }
+      },
+      "id": "89446d78-7e70-42a7-b74d-4824f5e4c193",
+      "name": "Supply Chain Intelligence Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -3648,
+        704
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"preferred_suppliers\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"risk_level\": {\n      \"type\": \"string\",\n      \"enum\": [\"low\", \"medium\", \"high\"]\n    },\n    \"delay_probability\": {\n      \"type\": \"number\",\n      \"minimum\": 0,\n      \"maximum\": 1\n    },\n    \"backup_suppliers\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  }\n}"
+      },
+      "id": "5d923304-d047-4524-842d-0a556eae6c2b",
+      "name": "Supply Chain Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -3520,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "b03ea15f-adf3-4ae3-b5c9-12bc0aef5825",
+      "name": "Supply Chain Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -3648,
+        928
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Stock Monitor & Reorder Decision Logic\n// Compares current stock levels against safety stock thresholds\n// Factors in demand forecasts and determines reorder requirements\n\nconst workflowConfig = $('Workflow Configuration').first().json;\nconst inputData = $('Input Validation & Normalization').first().json;\nconst demandForecast = $('Demand Forecasting Agent').first().json;\nconst supplyChainData = $('Supply Chain Intelligence Agent').first().json;\n\n// Extract configuration parameters\nconst safetyStockThreshold = workflowConfig.safety_stock_threshold || 0.2; // 20% default\nconst reorderBufferMultiplier = workflowConfig.reorder_buffer_multiplier || 1.5;\nconst highRiskDelayDays = workflowConfig.high_risk_delay_days || 14;\n\n// Extract current stock from Input Validation & Normalization\nconst currentStock = inputData.current_stock || {};\n\n// Extract demand forecast data - forecast_30d contains the 30-day forecast\nconst forecast30d = demandForecast.forecast_30d || {};\n\n// Initialize results array\nconst skuAnalysis = [];\nlet overallReorderRequired = false;\nlet highestUrgency = 'none';\n\n// Process each SKU in current stock\nfor (const [sku, stockData] of Object.entries(currentStock)) {\n  // Handle both object format {quantity: X, max_capacity: Y} and simple number format\n  const currentLevel = typeof stockData === 'object' ? (stockData.quantity || stockData.current_quantity || 0) : stockData;\n  const maxCapacity = typeof stockData === 'object' ? (stockData.max_capacity || currentLevel * 3) : currentLevel * 3;\n  \n  // Get 30-day forecast for this SKU and calculate daily demand\n  const forecast30dForSku = forecast30d[sku] || 0;\n  const forecastedDailyDemand = forecast30dForSku / 30; // Convert 30-day forecast to daily demand\n  \n  // Calculate stock percentage\n  const stockPercentage = maxCapacity > 0 ? currentLevel / maxCapacity : 0;\n  \n  // Calculate days of stock remaining\n  const daysOfStockRemaining = forecastedDailyDemand > 0 \n    ? currentLevel / forecastedDailyDemand \n    : 999; // If no demand, assume plenty of stock\n  \n  // Determine if reorder is required\n  let reorderRequired = false;\n  let urgencyLevel = 'none';\n  let reason = '';\n  \n  // Check against critical threshold (below 10% or less than 3 days stock)\n  if (stockPercentage <= 0.1 || daysOfStockRemaining <= 3) {\n    reorderRequired = true;\n    urgencyLevel = 'high';\n    reason = `Critical stock level: ${(stockPercentage * 100).toFixed(1)}% remaining, only ${daysOfStockRemaining.toFixed(1)} days of stock`;\n  }\n  // Check against safety threshold\n  else if (stockPercentage <= safetyStockThreshold || daysOfStockRemaining <= 7) {\n    reorderRequired = true;\n    urgencyLevel = 'medium';\n    reason = `Below safety stock: ${(stockPercentage * 100).toFixed(1)}% remaining, ${daysOfStockRemaining.toFixed(1)} days of stock`;\n  }\n  // Check if approaching threshold\n  else if (stockPercentage <= safetyStockThreshold * 1.5 || daysOfStockRemaining <= 14) {\n    reorderRequired = true;\n    urgencyLevel = 'low';\n    reason = `Approaching safety threshold: ${(stockPercentage * 100).toFixed(1)}% remaining, ${daysOfStockRemaining.toFixed(1)} days of stock`;\n  }\n  else {\n    reason = `Stock levels adequate: ${(stockPercentage * 100).toFixed(1)}% remaining, ${daysOfStockRemaining.toFixed(1)} days of stock`;\n  }\n  \n  // Track overall reorder status\n  if (reorderRequired) {\n    overallReorderRequired = true;\n    \n    // Update highest urgency level\n    if (urgencyLevel === 'high') {\n      highestUrgency = 'high';\n    } else if (urgencyLevel === 'medium' && highestUrgency !== 'high') {\n      highestUrgency = 'medium';\n    } else if (urgencyLevel === 'low' && highestUrgency === 'none') {\n      highestUrgency = 'low';\n    }\n  }\n  \n  // Add SKU analysis to results\n  skuAnalysis.push({\n    sku: sku,\n    current_stock: currentLevel,\n    max_capacity: maxCapacity,\n    stock_percentage: stockPercentage,\n    forecast_30d: forecast30dForSku,\n    forecasted_daily_demand: forecastedDailyDemand,\n    days_of_stock_remaining: daysOfStockRemaining,\n    reorder_required: reorderRequired,\n    urgency_level: urgencyLevel,\n    reason: reason\n  });\n}\n\n// Sort by urgency (high -> medium -> low -> none)\nconst urgencyOrder = { 'high': 0, 'medium': 1, 'low': 2, 'none': 3 };\nskuAnalysis.sort((a, b) => urgencyOrder[a.urgency_level] - urgencyOrder[b.urgency_level]);\n\n// Prepare output\nconst output = {\n  reorder_required: overallReorderRequired,\n  overall_urgency: highestUrgency,\n  sku_analysis: skuAnalysis,\n  total_skus_analyzed: skuAnalysis.length,\n  skus_requiring_reorder: skuAnalysis.filter(s => s.reorder_required).length,\n  analysis_timestamp: new Date().toISOString(),\n  configuration: {\n    safety_stock_threshold: safetyStockThreshold,\n    reorder_buffer_multiplier: reorderBufferMultiplier,\n    high_risk_delay_days: highRiskDelayDays\n  }\n};\n\nconsole.log('Stock Monitor Analysis Complete:', {\n  reorder_required: overallReorderRequired,\n  urgency: highestUrgency,\n  skus_needing_reorder: output.skus_requiring_reorder\n});\n\nreturn [{ json: output }];"
+      },
+      "id": "2e469ed4-a30e-4aad-bad9-561f5e0efdbe",
+      "name": "Stock Monitor & Reorder Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3296,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Stock Monitor & Reorder Decision').item.json.reorder_required }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "598fca09-7fb2-479e-9e90-fbd97425dfe6",
+      "name": "Reorder Required?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -3072,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "advisory",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "message",
+              "value": "Stock levels are adequate. No reorder required at this time.",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "reorder_required",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ecc2eb10-4e21-47c3-921d-b327efe11ed5",
+      "name": "Advisory Response (No Reorder)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -224,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Calculate replenishment requirements:\n\nSKU List: {{ $json.sku_list }}\nCurrent Stock: {{ $json.current_stock }}\nDemand Forecast: {{ $json.forecast_30d }}\nUrgency: {{ $json.urgency }}\nSupply Chain Risk: {{ $json.risk_level }}\n\nCalculate optimal reorder quantities and estimated costs.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a Replenishment Calculation Agent for a cosmetic brand operations system.\n\nYour task is to:\n1. Calculate optimal reorder quantities for each SKU\n2. Factor in demand forecasts, current stock, and safety stock requirements\n3. Apply buffer stock multipliers based on supply chain risk levels\n4. Estimate total costs including unit prices, shipping, and duties\n5. Provide clear justification for reorder quantities\n6. Consider MOQ (minimum order quantities) and EOQ (economic order quantities)\n7. Return structured JSON output with quantities, costs, and justifications\n\nBe conservative with high-risk suppliers. Increase buffer stock for critical SKUs. Optimize for cost efficiency while maintaining service levels."
+        }
+      },
+      "id": "df6f2245-30c7-4862-8cd7-d6d7dec01753",
+      "name": "Replenishment Calculation Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -2848,
+        1024
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"reorder_quantity\": {\n      \"type\": \"object\",\n      \"description\": \"Object with SKU keys mapping to reorder quantities\",\n      \"additionalProperties\": {\n        \"type\": \"number\"\n      }\n    },\n    \"estimated_cost\": {\n      \"type\": \"number\",\n      \"description\": \"Total estimated cost for the reorder\"\n    },\n    \"justification\": {\n      \"type\": \"string\",\n      \"description\": \"Justification for the reorder decision\"\n    }\n  },\n  \"required\": [\"reorder_quantity\", \"estimated_cost\", \"justification\"]\n}"
+      },
+      "id": "76357ebf-3eb4-48e6-be37-eb12a8573ff2",
+      "name": "Replenishment Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -2720,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "715a75de-06aa-4082-bb73-9099e675db6c",
+      "name": "Replenishment Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -2848,
+        1248
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rNv9DzGl7IFHotwO",
+          "mode": "id",
+          "cachedResultName": "rNv9DzGl7IFHotwO"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "3fe9c432-272e-4cdb-8a77-5cda43b1597c",
+      "name": "Request CFO Approval (WF-2)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -2496,
+        1024
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Request CFO Approval (WF-2)').item.json.status }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "27b19a41-b1de-4253-ae2a-06a3048cd26e",
+      "name": "CFO Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2272,
+        1024
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "blocked",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "message",
+              "value": "CFO rejected or requested revision. Operations cannot proceed.",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "cfo_decision",
+              "value": "={{ $('Request CFO Approval (WF-2)').item.json.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0f5e4dbe-b903-46d7-a6fc-5973e207c1aa",
+      "name": "CFO Rejection Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -224,
+        1072
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Determine optimal packaging:\n\nSKU List: {{ $json.sku_list }}\nReorder Quantity: {{ $json.reorder_quantity }}\n\nRecommend packaging type, materials, and cost optimization strategies.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a Packaging Operations Agent for a cosmetic brand operations system.\n\nYour task is to:\n1. Determine optimal packaging type for each SKU (bottles, jars, tubes, boxes)\n2. Select appropriate materials balancing cost, protection, and sustainability\n3. Calculate unit packaging costs\n4. Assess sustainability scores based on recyclability and environmental impact\n5. Consider branding requirements and regulatory compliance\n6. Optimize for shipping efficiency and product protection\n7. Return structured JSON output with packaging recommendations and costs\n\nIMPORTANT: Packaging costs are operationally absorbed and NOT included in CFO approval request. Calculate and log packaging costs for operational tracking only.\n\nPrioritize sustainability where cost-effective. Ensure packaging meets cosmetic industry standards and regulations."
+        }
+      },
+      "id": "ecb50fec-dc77-4a39-877c-b63dfcaf3363",
+      "name": "Packaging Operations Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -1824,
+        848
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"packaging_type\": {\n\t\t\t\"type\": \"string\"\n\t\t},\n\t\t\"unit_cost\": {\n\t\t\t\"type\": \"number\"\n\t\t},\n\t\t\"sustainability_score\": {\n\t\t\t\"type\": \"number\",\n\t\t\t\"minimum\": 0,\n\t\t\t\"maximum\": 1\n\t\t}\n\t}\n}"
+      },
+      "id": "3a89a291-1305-4af6-b59f-d65040009b7a",
+      "name": "Packaging Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1696,
+        1072
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "c810da07-2373-49cf-a30d-c78b8a8c7a44",
+      "name": "Packaging Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1824,
+        1072
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Plan logistics:\n\nSKU List: {{ $json.sku_list }}\nReorder Quantity: {{ $json.reorder_quantity }}\nSuppliers: {{ $json.preferred_suppliers }}\nPackaging: {{ $json.packaging_type }}\n\nSelect optimal carrier and calculate shipping costs.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a Logistics Agent for a cosmetic brand operations system.\n\nYour task is to:\n1. Select optimal shipping carriers based on cost, speed, and reliability\n2. Calculate total shipping costs including freight, insurance, and handling\n3. Consider shipment size, weight, and destination\n4. Evaluate carrier performance history and service levels\n5. Factor in special requirements for cosmetic products (temperature control, fragile handling)\n6. Provide carrier recommendations with cost breakdowns\n7. Return structured JSON output with carrier selection and shipping costs\n\nBalance cost efficiency with delivery reliability. Prioritize carriers with cosmetic shipping experience."
+        }
+      },
+      "id": "8adbe769-3b59-4983-a14e-e2f8220d577f",
+      "name": "Logistics Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -1472,
+        368
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"carrier\": \"FedEx\",\n\t\"shipping_cost\": 150.00\n}"
+      },
+      "id": "d48f2f25-5c9d-432a-b41e-ca22a741f649",
+      "name": "Logistics Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1344,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "5e521739-eb9f-4d77-b3ad-bc9ddec32163",
+      "name": "Logistics Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1472,
+        592
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Optimize routing:\n\nSKU List: {{ $json.sku_list }}\nSuppliers: {{ $json.preferred_suppliers }}\nDestination: Distribution Center\n\nCalculate optimal routes and ETAs.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a Routing Operations Agent for a cosmetic brand operations system.\n\nYour task is to:\n1. Calculate optimal shipping routes from suppliers to distribution centers\n2. Estimate accurate ETAs based on distance, carrier, and current conditions\n3. Consider route efficiency, transit times, and potential delays\n4. Factor in customs clearance times for international shipments\n5. Identify potential bottlenecks or high-risk route segments\n6. Provide route recommendations with ETA calculations\n7. Return structured JSON output with route details and ETA in days\n\nOptimize for fastest reliable delivery. Account for customs and border crossing delays."
+        }
+      },
+      "id": "5caf2844-5ce1-4ca4-b2a9-b30b97136b2f",
+      "name": "Routing Operations Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -1472,
+        864
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"eta_days\": 5\n}"
+      },
+      "id": "56173fe3-b0de-4231-8192-b9226991eeca",
+      "name": "Routing Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1344,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "74d3b14a-d8c7-42ef-919d-739ba42d2349",
+      "name": "Routing Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1472,
+        1088
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge Logistics & Routing Data\n// Combines data from parallel Logistics Agent and Routing Operations Agent\n\nconst items = $input.all();\n\n// Separate logistics and routing data\nlet logisticsData = null;\nlet routingData = null;\n\nfor (const item of items) {\n  const json = item.json;\n  \n  // Check if this item has logistics data (carrier, shipping_cost)\n  if (json.carrier || json.shipping_cost) {\n    logisticsData = json;\n  }\n  \n  // Check if this item has routing data (eta_days)\n  if (json.eta_days !== undefined) {\n    routingData = json;\n  }\n}\n\n// Merge the data into a unified logistics plan\nconst unifiedLogisticsPlan = {\n  carrier: logisticsData?.carrier || 'Not specified',\n  shipping_cost: logisticsData?.shipping_cost || 0,\n  eta_days: routingData?.eta_days || 0,\n  shipping_method: logisticsData?.shipping_method || 'Standard',\n  tracking_available: logisticsData?.tracking_available || true,\n  route_optimized: routingData?.route_optimized || false,\n  delivery_address: routingData?.delivery_address || logisticsData?.delivery_address || 'Not specified',\n  merged_at: new Date().toISOString(),\n  source: {\n    logistics_agent: logisticsData ? 'data_received' : 'no_data',\n    routing_agent: routingData ? 'data_received' : 'no_data'\n  }\n};\n\n// Return the unified logistics plan\nreturn [{ json: unifiedLogisticsPlan }];"
+      },
+      "id": "09e4a4aa-3052-41b9-8e67-0ee2ea9788fa",
+      "name": "Merge Logistics & Routing Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "execute",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.cfo_approved }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e800d9b6-a74f-4775-84a9-d26ed91944bf",
+      "name": "Execution Safety Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -448,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "planned",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "message",
+              "value": "Simulation mode - no real operations executed",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "mode",
+              "value": "simulation",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0d641b79-033b-49b5-9e55-c5fcbbb897c5",
+      "name": "Simulation Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -224,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Execute Real Operations - Trigger actual purchase orders, supplier notifications, and inventory updates\n\nconst items = $input.all();\nconst executionResults = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Extract relevant data from previous nodes\n  const replenishmentData = data.replenishment || {};\n  const packagingData = data.packaging || {};\n  const logisticsData = data.logistics || {};\n  const routingData = data.routing || {};\n  \n  // Log execution start\n  console.log('=== EXECUTING REAL OPERATIONS ===');\n  console.log('Timestamp:', new Date().toISOString());\n  console.log('Replenishment Data:', JSON.stringify(replenishmentData, null, 2));\n  \n  // 1. Create Purchase Orders\n  const purchaseOrders = [];\n  if (replenishmentData.orderQuantity) {\n    const po = {\n      poNumber: `PO-${Date.now()}`,\n      supplier: replenishmentData.supplier || 'Default Supplier',\n      items: replenishmentData.items || [],\n      quantity: replenishmentData.orderQuantity,\n      totalCost: replenishmentData.totalCost || 0,\n      expectedDelivery: replenishmentData.expectedDeliveryDate,\n      status: 'SUBMITTED',\n      createdAt: new Date().toISOString()\n    };\n    purchaseOrders.push(po);\n    console.log('Purchase Order Created:', JSON.stringify(po, null, 2));\n  }\n  \n  // 2. Send Supplier Notifications\n  const supplierNotifications = [];\n  for (const po of purchaseOrders) {\n    const notification = {\n      notificationId: `NOTIF-${Date.now()}`,\n      recipient: po.supplier,\n      type: 'PURCHASE_ORDER',\n      poNumber: po.poNumber,\n      message: `New purchase order ${po.poNumber} for ${po.quantity} units`,\n      sentAt: new Date().toISOString(),\n      status: 'SENT'\n    };\n    supplierNotifications.push(notification);\n    console.log('Supplier Notification Sent:', JSON.stringify(notification, null, 2));\n  }\n  \n  // 3. Update Inventory System\n  const inventoryUpdates = [];\n  if (replenishmentData.orderQuantity) {\n    const update = {\n      updateId: `INV-UPDATE-${Date.now()}`,\n      productId: data.productId || 'UNKNOWN',\n      action: 'PENDING_RECEIPT',\n      quantity: replenishmentData.orderQuantity,\n      expectedDate: replenishmentData.expectedDeliveryDate,\n      updatedAt: new Date().toISOString(),\n      status: 'RECORDED'\n    };\n    inventoryUpdates.push(update);\n    console.log('Inventory System Updated:', JSON.stringify(update, null, 2));\n  }\n  \n  // 4. Trigger Packaging Operations\n  const packagingOperations = [];\n  if (packagingData.packagingPlan) {\n    const operation = {\n      operationId: `PKG-${Date.now()}`,\n      plan: packagingData.packagingPlan,\n      materials: packagingData.materials || [],\n      scheduledDate: packagingData.scheduledDate,\n      status: 'SCHEDULED',\n      createdAt: new Date().toISOString()\n    };\n    packagingOperations.push(operation);\n    console.log('Packaging Operation Scheduled:', JSON.stringify(operation, null, 2));\n  }\n  \n  // 5. Initiate Logistics & Routing\n  const logisticsOperations = [];\n  if (logisticsData.carrier || routingData.route) {\n    const operation = {\n      operationId: `LOG-${Date.now()}`,\n      carrier: logisticsData.carrier,\n      route: routingData.route,\n      estimatedDelivery: logisticsData.estimatedDelivery || routingData.estimatedDelivery,\n      trackingNumber: `TRK-${Date.now()}`,\n      status: 'INITIATED',\n      createdAt: new Date().toISOString()\n    };\n    logisticsOperations.push(operation);\n    console.log('Logistics Operation Initiated:', JSON.stringify(operation, null, 2));\n  }\n  \n  // Compile execution summary\n  const executionSummary = {\n    executionId: `EXEC-${Date.now()}`,\n    timestamp: new Date().toISOString(),\n    status: 'executed',\n    operations: {\n      purchaseOrders: purchaseOrders,\n      supplierNotifications: supplierNotifications,\n      inventoryUpdates: inventoryUpdates,\n      packagingOperations: packagingOperations,\n      logisticsOperations: logisticsOperations\n    },\n    summary: {\n      totalPurchaseOrders: purchaseOrders.length,\n      totalNotifications: supplierNotifications.length,\n      totalInventoryUpdates: inventoryUpdates.length,\n      totalPackagingOps: packagingOperations.length,\n      totalLogisticsOps: logisticsOperations.length\n    },\n    message: 'Real operations executed successfully',\n    originalData: data\n  };\n  \n  console.log('=== EXECUTION COMPLETE ===');\n  console.log('Summary:', JSON.stringify(executionSummary.summary, null, 2));\n  \n  executionResults.push(executionSummary);\n}\n\nreturn executionResults.map(result => ({ json: result }));"
+      },
+      "id": "53a00abe-7dd6-44ad-b651-1a293af039de",
+      "name": "Execute Real Operations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "operations_id",
+              "value": "={{ $('Input Validation & Normalization').item.json.operations_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "reorder_quantity",
+              "value": "={{ JSON.stringify($json.reorder_quantity || {}) }}",
+              "type": "object"
+            },
+            {
+              "id": "id-4",
+              "name": "supplier",
+              "value": "={{ $json.preferred_suppliers?.[0] || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "eta_days",
+              "value": "={{ $json.eta_days || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "id-6",
+              "name": "mode",
+              "value": "={{ $('Input Validation & Normalization').item.json.mode }}",
+              "type": "string"
+            },
+            {
+              "id": "id-7",
+              "name": "warnings",
+              "value": "={{ JSON.stringify($json.warnings || []) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "03cf15f9-584f-4158-9acd-493ef497f3c3",
+      "name": "Final Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = items.map(item => {\n  const data = item.json;\n  return {\n    json: {\n      ...data,\n      log_entry: {\n        workflow: 'WF-3-Operations',\n        timestamp: new Date().toISOString(),\n        request_id: data.request_id || 'unknown',\n        action: data.action || 'operations_processing',\n        status: data.status || 'processed'\n      }\n    }\n  };\n});\nreturn results;"
+      },
+      "id": "f9bf4202-f179-479f-b2c6-620a0d916fbd",
+      "name": "Logging Service",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        688
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "cfo_approved",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "6ada9343-6ee3-433a-88f8-645ec14e312d",
+      "name": "Map CFO Approval",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2048,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Request CFO Approval (WF-2)').item.json.status }}",
+              "rightValue": "revision_requested",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8342870a-f068-4446-a91b-00ece3b0d816",
+      "name": "Check Supply Chain Risk",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -448,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "revision_requested",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "message",
+              "value": "CFO requested revision. Please review and resubmit.",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "cfo_decision",
+              "value": "={{ $('Request CFO Approval (WF-2)').item.json.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fbeff081-65f4-42b1-b53f-73a9f63c08af",
+      "name": "CFO Revision Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -224,
+        1344
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Universal Contract Validation\n// Validates the universal contract structure from WF-0\n// Ensures all mandatory fields are present before proceeding\n\nconst items = $input.all();\n\n// Check if we have input\nif (!items || items.length === 0) {\n  return [{\n    json: {\n      validation_passed: false,\n      rejection_reason: \"No input data received from WF-0\",\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\nconst inputData = items[0].json;\n\n// Define mandatory fields for universal contract\nconst mandatoryFields = [\n  'request_id',\n  'mode',\n  'confidence',\n  'risk_level',\n  'payload'\n];\n\n// Define mandatory audit metadata fields\nconst mandatoryAuditFields = [\n  'timestamp',\n  'caller_workflow',\n  'execution_id'\n];\n\n// Check for missing mandatory fields\nconst missingFields = [];\n\nfor (const field of mandatoryFields) {\n  if (!inputData[field] && inputData[field] !== 0 && inputData[field] !== false) {\n    missingFields.push(field);\n  }\n}\n\n// Check for audit metadata\nif (!inputData.audit_metadata || typeof inputData.audit_metadata !== 'object') {\n  missingFields.push('audit_metadata');\n} else {\n  // Check mandatory audit fields\n  for (const field of mandatoryAuditFields) {\n    if (!inputData.audit_metadata[field]) {\n      missingFields.push(`audit_metadata.${field}`);\n    }\n  }\n}\n\n// Determine validation result\nif (missingFields.length > 0) {\n  return [{\n    json: {\n      validation_passed: false,\n      rejection_reason: `Universal contract validation failed. Missing mandatory fields: ${missingFields.join(', ')}`,\n      missing_fields: missingFields,\n      timestamp: new Date().toISOString(),\n      input_data: inputData\n    }\n  }];\n}\n\n// Validation passed - return all input data with validation flag\nreturn [{\n  json: {\n    validation_passed: true,\n    rejection_reason: null,\n    timestamp: new Date().toISOString(),\n    ...inputData\n  }\n}];"
+      },
+      "id": "97adb11e-b4d8-4c02-8fed-07e477a68fc5",
+      "name": "Universal Contract Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5344,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Universal Contract Validation').item.json.validation_passed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8c65602e-ab70-4eb0-aab4-d64591d9003d",
+      "name": "Contract Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5120,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "rejected",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "reason",
+              "value": "={{ $('Universal Contract Validation').item.json.rejection_reason }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "workflow_id",
+              "value": "WF-3",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "request_id",
+              "value": "={{ $('Universal Contract Validation').item.json.request_id || 'unknown' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fdc1a89d-a207-4051-9f5c-98803a13e77b",
+      "name": "Contract Rejection Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// System Confidence Re-Check\n// Re-validates system confidence from WF-0 input before proceeding with operations\n\nconst items = $input.all();\n\nif (!items || items.length === 0) {\n  return [{\n    json: {\n      confidence_check_passed: false,\n      pause_reason: 'No input data received for confidence check',\n      human_approval_required: true,\n      error: true\n    }\n  }];\n}\n\nconst inputData = items[0].json;\n\n// Extract confidence and risk_level from input data\nconst confidence = inputData.confidence || inputData.system_confidence || 1.0;\nconst riskLevel = inputData.risk_level || inputData.risk || 'low';\n\n// Initialize check result\nlet confidenceCheckPassed = true;\nlet pauseReason = null;\nlet humanApprovalRequired = false;\n\n// Check if confidence < 0.9 AND risk_level is 'medium' or 'high'\nif (confidence < 0.9 && (riskLevel === 'medium' || riskLevel === 'high')) {\n  confidenceCheckPassed = false;\n  pauseReason = 'Insufficient system confidence for operational autonomy';\n  humanApprovalRequired = true;\n}\n\n// Log the confidence check result\nconsole.log('=== SYSTEM CONFIDENCE RE-CHECK ===');\nconsole.log('Confidence:', confidence);\nconsole.log('Risk Level:', riskLevel);\nconsole.log('Check Passed:', confidenceCheckPassed);\nconsole.log('Human Approval Required:', humanApprovalRequired);\n\n// Return result with all input data preserved\nreturn [{\n  json: {\n    confidence_check_passed: confidenceCheckPassed,\n    pause_reason: pauseReason,\n    human_approval_required: humanApprovalRequired,\n    confidence: confidence,\n    risk_level: riskLevel,\n    timestamp: new Date().toISOString(),\n    ...inputData\n  }\n}];"
+      },
+      "id": "d7dd8f77-a84b-4971-9fe2-cbe140e2fd0c",
+      "name": "System Confidence Re-Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4896,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Founder Availability Gate\n// Checks if founder is available for high-risk operational decisions\n// Pauses execution if founder is unavailable and risk level is medium or high\n\nconst items = $input.all();\n\nif (!items || items.length === 0) {\n  return [{\n    json: {\n      availability_check_passed: false,\n      pause_reason: 'No input data received',\n      status: 'error',\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\nconst inputData = items[0].json;\n\n// Extract founder availability and risk level from input\nconst founderAvailable = inputData.founder_available !== undefined ? inputData.founder_available : true;\nconst riskLevel = inputData.risk_level || 'low';\n\n// Determine if availability check passes\nlet availabilityCheckPassed = true;\nlet pauseReason = null;\nlet status = 'passed';\n\n// If founder is unavailable AND risk level is medium or high, pause execution\nif (!founderAvailable && (riskLevel === 'medium' || riskLevel === 'high')) {\n  availabilityCheckPassed = false;\n  pauseReason = 'Founder unavailable – operational execution paused';\n  status = 'waiting_for_founder';\n  \n  console.log('⚠️ FOUNDER AVAILABILITY CHECK FAILED');\n  console.log('Founder Available:', founderAvailable);\n  console.log('Risk Level:', riskLevel);\n  console.log('Status:', status);\n} else {\n  console.log('✅ FOUNDER AVAILABILITY CHECK PASSED');\n  console.log('Founder Available:', founderAvailable);\n  console.log('Risk Level:', riskLevel);\n}\n\n// Return result with all input data preserved\nreturn [{\n  json: {\n    ...inputData,\n    availability_check_passed: availabilityCheckPassed,\n    pause_reason: pauseReason,\n    status: status,\n    founder_availability_check: {\n      founder_available: founderAvailable,\n      risk_level: riskLevel,\n      check_timestamp: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "id": "2786355e-4af7-4924-a804-8c91b7dbfc13",
+      "name": "Founder Availability Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4672,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// CREA Block Respect - Enforce CREA Decision Authority\n// Checks if CREA has blocked this operation and enforces the block\n\nconst items = $input.all();\n\nif (!items || items.length === 0) {\n  return [{\n    json: {\n      crea_check_passed: false,\n      status: 'error',\n      blocked_by: 'SYSTEM',\n      block_reason: 'No input data received',\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\nconst inputData = items[0].json;\n\n// Extract CREA approval status\nconst creaApproval = inputData.crea_approval;\nconst blockedBy = inputData.blocked_by;\n\n// Check if CREA has blocked this operation\nlet creaCheckPassed = true;\nlet status = 'passed';\nlet blockReason = null;\nlet finalBlockedBy = null;\n\nif (creaApproval === false || blockedBy === 'CREA') {\n  creaCheckPassed = false;\n  status = 'blocked';\n  finalBlockedBy = 'CREA';\n  blockReason = 'CREA decision must be respected';\n  \n  console.log('⛔ CREA BLOCK ENFORCED');\n  console.log('CREA Approval:', creaApproval);\n  console.log('Blocked By:', blockedBy);\n  console.log('Block Reason:', blockReason);\n}\n\n// Return result with all input data preserved\nconst output = {\n  ...inputData,\n  crea_check_passed: creaCheckPassed,\n  status: status,\n  blocked_by: finalBlockedBy,\n  block_reason: blockReason,\n  crea_check_timestamp: new Date().toISOString()\n};\n\nif (creaCheckPassed) {\n  console.log('✅ CREA Check Passed - Operation may proceed');\n} else {\n  console.log('❌ CREA Check Failed - Operation blocked');\n}\n\nreturn [{ json: output }];"
+      },
+      "id": "566bd05f-9d6f-4e6b-a918-176e53308688",
+      "name": "CREA Block Respect",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4448,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Hard Execution Lock - Pre-Operations\n// Enforces strict safety checks before allowing any real operational execution\n// This is the final gate before Execute Real Operations\n\nconst items = $input.all();\n\nif (!items || items.length === 0) {\n  return [{\n    json: {\n      execution_allowed: false,\n      reason: 'No input data received',\n      mode: 'unknown',\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\nconst inputData = items[0].json;\n\n// Extract mode from input data\nconst mode = inputData.mode || 'simulation';\n\n// Extract safety check flags\nconst confidenceCheckPassed = inputData.confidence_check_passed || false;\nconst availabilityCheckPassed = inputData.availability_check_passed || false;\nconst creaCheckPassed = inputData.crea_check_passed || false;\n\n// Initialize execution decision\nlet executionAllowed = false;\nlet reason = '';\n\n// Check 1: Mode must be 'execute'\nif (mode !== 'execute') {\n  executionAllowed = false;\n  reason = 'Simulation mode – no operational execution permitted';\n}\n// Check 2: All safety checks must pass\nelse if (!confidenceCheckPassed) {\n  executionAllowed = false;\n  reason = 'System confidence check failed – execution blocked for safety';\n}\nelse if (!availabilityCheckPassed) {\n  executionAllowed = false;\n  reason = 'Founder availability check failed – execution blocked pending approval';\n}\nelse if (!creaCheckPassed) {\n  executionAllowed = false;\n  reason = 'CREA block active – execution blocked during creative time';\n}\nelse {\n  // All checks passed\n  executionAllowed = true;\n  reason = 'All safety checks passed – execution authorized';\n}\n\n// Log the decision\nconsole.log('=== HARD EXECUTION LOCK - PRE-OPERATIONS ===');\nconsole.log('Mode:', mode);\nconsole.log('Confidence Check:', confidenceCheckPassed);\nconsole.log('Availability Check:', availabilityCheckPassed);\nconsole.log('CREA Check:', creaCheckPassed);\nconsole.log('Execution Allowed:', executionAllowed);\nconsole.log('Reason:', reason);\n\n// Return decision with all input data preserved\nreturn [{\n  json: {\n    execution_allowed: executionAllowed,\n    reason: reason,\n    mode: mode,\n    safety_checks: {\n      confidence_check_passed: confidenceCheckPassed,\n      availability_check_passed: availabilityCheckPassed,\n      crea_check_passed: creaCheckPassed\n    },\n    timestamp: new Date().toISOString(),\n    // Preserve all input data\n    ...inputData\n  }\n}];"
+      },
+      "id": "57e698d2-4b17-4104-87bf-98c3b108bd81",
+      "name": "Hard Execution Lock - Pre-Operations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Hard Execution Lock - Pre-Operations').item.json.execution_allowed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2b39ae19-2c69-4c0b-9e7e-124b79d41eac",
+      "name": "Execution Allowed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -672,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "={{ $('Hard Execution Lock - Pre-Operations').item.json.status || 'simulation_only' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "decision_summary",
+              "value": "={{ $('Hard Execution Lock - Pre-Operations').item.json.reason }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "execution_performed",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-4",
+              "name": "workflow_id",
+              "value": "WF-3",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4c31c1fe-519a-419c-b00b-7c86ce89b6f4",
+      "name": "Execution Blocked Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Final Output Sanitization & Normalization\n// Sanitizes and normalizes final output to standardized schema\n// Drops all internal operational fields and returns only public-facing data\n\nconst items = $input.all();\n\nif (!items || items.length === 0) {\n  return [{\n    json: {\n      workflow_id: 'WF-3',\n      request_id: 'unknown',\n      status: 'error',\n      decision_summary: 'No input data received',\n      confidence: 0,\n      risk_level: 'unknown',\n      operational_impact: {},\n      execution_performed: false,\n      founder_approval_required: false,\n      approvals: [],\n      next_allowed_actions: [],\n      audit: {\n        timestamp: new Date().toISOString(),\n        workflow_version: '1.0'\n      }\n    }\n  }];\n}\n\nconst currentData = items[0].json;\n\n// Extract original input data\nconst inputData = $('Input Validation & Normalization').first()?.json || {};\nconst request_id = inputData.request_id || currentData.request_id || 'unknown';\nconst mode = inputData.mode || currentData.mode || 'simulation';\n\n// Extract confidence and risk level from agent outputs\nconst demandForecast = $('Demand Forecasting Agent').first()?.json || {};\nconst supplyChainData = $('Supply Chain Intelligence Agent').first()?.json || {};\nconst confidence = demandForecast.confidence_score || currentData.confidence || 0.5;\nconst risk_level = supplyChainData.risk_level || currentData.risk_level || 'medium';\n\n// Determine final status from execution results\nlet status = 'completed';\nlet decision_summary = '';\nlet execution_performed = false;\n\nif (currentData.status === 'blocked') {\n  status = 'blocked';\n  decision_summary = currentData.message || 'Execution blocked';\n} else if (currentData.status === 'revision_requested') {\n  status = 'revision_requested';\n  decision_summary = currentData.message || 'CFO requested revision';\n} else if (currentData.status === 'advisory') {\n  status = 'advisory';\n  decision_summary = currentData.message || 'No action required';\n} else if (currentData.status === 'executed') {\n  status = 'executed';\n  decision_summary = 'Operations executed successfully';\n  execution_performed = true;\n} else if (currentData.status === 'planned') {\n  status = 'planned';\n  decision_summary = 'Simulation mode - operations planned but not executed';\n} else {\n  status = 'completed';\n  decision_summary = 'Workflow completed successfully';\n}\n\n// Extract operational impact\nconst stockMonitor = $('Stock Monitor & Reorder Decision').first()?.json || {};\nconst replenishmentData = $('Replenishment Calculation Agent').first()?.json || {};\nconst operational_impact = {\n  reorder_required: stockMonitor.reorder_required || false,\n  urgency: stockMonitor.overall_urgency || 'none',\n  estimated_cost: replenishmentData.estimated_cost || 0,\n  skus_affected: stockMonitor.skus_requiring_reorder || 0\n};\n\n// Determine founder approval requirement\nconst founder_approval_required = currentData.founder_approval_required || false;\n\n// Extract approvals\nconst cfoApproval = $('Request CFO Approval (WF-2)').first()?.json || {};\nconst approvals = [];\nif (cfoApproval.status) {\n  approvals.push({\n    approver: 'CFO',\n    status: cfoApproval.status,\n    timestamp: cfoApproval.timestamp || new Date().toISOString()\n  });\n}\n\n// Determine next allowed actions\nconst next_allowed_actions = [];\nif (status === 'revision_requested') {\n  next_allowed_actions.push('revise_and_resubmit');\n} else if (status === 'planned') {\n  next_allowed_actions.push('execute_operations');\n} else if (status === 'advisory') {\n  next_allowed_actions.push('monitor_stock_levels');\n} else if (status === 'executed') {\n  next_allowed_actions.push('track_shipment', 'monitor_delivery');\n}\n\n// Build standardized output\nconst sanitizedOutput = {\n  workflow_id: 'WF-3',\n  request_id: request_id,\n  status: status,\n  decision_summary: decision_summary,\n  confidence: confidence,\n  risk_level: risk_level,\n  operational_impact: operational_impact,\n  execution_performed: execution_performed,\n  founder_approval_required: founder_approval_required,\n  approvals: approvals,\n  next_allowed_actions: next_allowed_actions,\n  audit: {\n    timestamp: new Date().toISOString(),\n    workflow_version: '1.0',\n    execution_mode: mode\n  }\n};\n\nconsole.log('=== FINAL OUTPUT SANITIZED ===');\nconsole.log(JSON.stringify(sanitizedOutput, null, 2));\n\nreturn [{ json: sanitizedOutput }];"
+      },
+      "id": "1d73a36a-69b6-431e-a468-1d75fe4f8a12",
+      "name": "Final Output Sanitization & Normalization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        688
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Audit Trail Logger - Immutable Audit Record Creation\n// Creates comprehensive audit trail for all WF-3 operations\n\nconst items = $input.all();\nconst inputData = items[0]?.json || {};\n\n// Extract data from previous nodes\nconst validationData = $('Input Validation & Normalization').first()?.json || {};\nconst workflowConfig = $('Workflow Configuration').first()?.json || {};\nconst contractValidation = $('Contract Valid?').first()?.json || {};\nconst confidenceCheck = $('System Confidence Re-Check').first()?.json || {};\nconst founderGate = $('Founder Availability Gate').first()?.json || {};\nconst creaBlock = $('CREA Block Respect').first()?.json || {};\nconst executionLock = $('Hard Execution Lock - Pre-Operations').first()?.json || {};\nconst executionGate = $('Execution Allowed?').first()?.json || {};\nconst supplyChainData = $('Supply Chain Intelligence Agent').first()?.json || {};\nconst stockMonitor = $('Stock Monitor & Reorder Decision').first()?.json || {};\nconst cfoApproval = $('Request CFO Approval (WF-2)').first()?.json || {};\n\n// Extract key identifiers\nconst request_id = validationData.request_id || inputData.request_id || 'UNKNOWN';\nconst operations_id = validationData.operations_id || inputData.operations_id || 'UNKNOWN';\nconst mode = validationData.mode || inputData.mode || 'simulation';\n\n// Extract confidence and risk metrics\nconst confidence_score = confidenceCheck.confidence_score || inputData.confidence_score || null;\nconst risk_level = supplyChainData.risk_level || inputData.risk_level || 'unknown';\n\n// Extract safety gate results\nconst founder_available = founderGate.founder_available !== undefined ? founderGate.founder_available : inputData.founder_available;\nconst crea_approval = creaBlock.crea_approved !== undefined ? creaBlock.crea_approved : inputData.crea_approval;\nconst contract_valid = contractValidation.contract_valid !== undefined ? contractValidation.contract_valid : true;\nconst execution_allowed = executionGate.execution_allowed !== undefined ? executionGate.execution_allowed : false;\n\n// Determine execution status and reason\nlet execution_status = 'not_executed';\nlet execution_reason = '';\n\nif (mode === 'execute' && execution_allowed) {\n  execution_status = 'executed';\n  execution_reason = 'All safety gates passed, execution mode enabled';\n} else if (mode === 'simulation') {\n  execution_status = 'simulated';\n  execution_reason = 'Workflow running in simulation mode';\n} else if (!contract_valid) {\n  execution_status = 'blocked_contract';\n  execution_reason = 'Contract validation failed';\n} else if (!founder_available) {\n  execution_status = 'blocked_founder';\n  execution_reason = 'Founder not available for approval';\n} else if (!crea_approval) {\n  execution_status = 'blocked_crea';\n  execution_reason = 'CREA approval not granted';\n} else if (!execution_allowed) {\n  execution_status = 'blocked_execution_lock';\n  execution_reason = 'Hard execution lock prevented operations';\n} else {\n  execution_status = 'blocked_unknown';\n  execution_reason = 'Execution blocked for unknown reason';\n}\n\n// Compile decision points\nconst decision_points = {\n  contract_validation: {\n    passed: contract_valid,\n    timestamp: contractValidation.timestamp || new Date().toISOString()\n  },\n  confidence_check: {\n    score: confidence_score,\n    passed: confidence_score >= 0.7,\n    timestamp: confidenceCheck.timestamp || new Date().toISOString()\n  },\n  founder_availability: {\n    available: founder_available,\n    timestamp: founderGate.timestamp || new Date().toISOString()\n  },\n  crea_approval: {\n    approved: crea_approval,\n    timestamp: creaBlock.timestamp || new Date().toISOString()\n  },\n  reorder_required: {\n    required: stockMonitor.reorder_required || false,\n    urgency: stockMonitor.overall_urgency || 'none',\n    timestamp: stockMonitor.analysis_timestamp || new Date().toISOString()\n  },\n  cfo_approval: {\n    status: cfoApproval.status || 'not_requested',\n    approved: cfoApproval.status === 'approved',\n    timestamp: cfoApproval.timestamp || new Date().toISOString()\n  },\n  execution_lock: {\n    allowed: execution_allowed,\n    timestamp: executionLock.timestamp || new Date().toISOString()\n  }\n};\n\n// Compile safety gate results\nconst safety_gates = {\n  contract_valid: contract_valid,\n  confidence_adequate: confidence_score >= 0.7,\n  founder_available: founder_available,\n  crea_approved: crea_approval,\n  execution_allowed: execution_allowed,\n  all_gates_passed: contract_valid && confidence_score >= 0.7 && founder_available && crea_approval && execution_allowed\n};\n\n// Create immutable audit record\nconst auditRecord = {\n  // Core identifiers\n  audit_id: `AUDIT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,\n  request_id: request_id,\n  operations_id: operations_id,\n  workflow_id: $workflow.id,\n  workflow_name: $workflow.name,\n  execution_id: $execution.id,\n  \n  // Execution metadata\n  performed_by: 'WF-3',\n  timestamp: new Date().toISOString(),\n  mode: mode,\n  \n  // Risk and confidence metrics\n  confidence_score: confidence_score,\n  risk_level: risk_level,\n  \n  // Safety gate status\n  founder_available: founder_available,\n  crea_approval: crea_approval,\n  contract_valid: contract_valid,\n  execution_allowed: execution_allowed,\n  \n  // Execution status\n  execution_status: execution_status,\n  execution_reason: execution_reason,\n  \n  // Decision points (detailed)\n  decision_points: decision_points,\n  \n  // Safety gates summary\n  safety_gates: safety_gates,\n  \n  // Operational data\n  reorder_required: stockMonitor.reorder_required || false,\n  skus_analyzed: stockMonitor.total_skus_analyzed || 0,\n  skus_requiring_reorder: stockMonitor.skus_requiring_reorder || 0,\n  cfo_approval_status: cfoApproval.status || 'not_requested',\n  \n  // Immutability marker\n  immutable: true,\n  audit_version: '1.0',\n  \n  // Original input data (for reference)\n  original_input: {\n    request_id: request_id,\n    trigger_type: validationData.trigger_type,\n    sku_list: validationData.sku_list,\n    mode: mode\n  }\n};\n\n// Log audit record\nconsole.log('=== IMMUTABLE AUDIT RECORD CREATED ===');\nconsole.log(JSON.stringify(auditRecord, null, 2));\n\n// Return audit record\nreturn [{ json: auditRecord }];"
+      },
+      "id": "9dbd230c-2058-49e2-a42c-0fe7901c557c",
+      "name": "Audit Trail Logger",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        688
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($('Input Validation & Normalization').item.json.payload ?? $('Input Validation & Normalization').item.json) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Stock Monitor Agent (L4) reporting to Supply Chain Intelligence. Watch real-time inventory vs sales/production consumption and raise low-stock alerts, reorder triggers and shortage warnings. Return JSON only."
+        }
+      },
+      "id": "40aeb3f3-9501-4fa3-a081-3749bb28eede",
+      "name": "Stock Monitor Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -3400,
+        1500
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "c358f522-7a9d-47d6-be3f-27ed501490b1",
+      "name": "Model - Stock Monitor",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -3384,
+        1720
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"low_stock_alerts\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"reorder_triggered\": {\"type\": \"boolean\"}, \"shortage_warnings\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"explanation\": {\"type\": \"string\"}}, \"required\": [\"reorder_triggered\", \"explanation\"]}"
+      },
+      "id": "8047e856-09ab-47f1-b602-b7b85c6a9384",
+      "name": "Parser - Stock Monitor",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -3240,
+        1720
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// passthrough: restore upstream item + attach agent analysis\nconst base = $('Supply Chain Intelligence Agent').first().json;\nconst analysis = $input.first().json;\nreturn [{ json: { ...base, stock_monitor: analysis } }];"
+      },
+      "id": "a91dc38f-0081-488d-8695-cf28690521b3",
+      "name": "Merge - Stock Monitor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3040,
+        1500
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Validation & Normalization": {
+      "main": [
+        [
+          {
+            "node": "Demand Forecasting Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Demand Forecast Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Demand Forecasting Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Demand Forecast Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Demand Forecasting Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Demand Forecasting Agent": {
+      "main": [
+        [
+          {
+            "node": "Supply Chain Intelligence Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supply Chain Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Supply Chain Intelligence Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supply Chain Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Supply Chain Intelligence Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supply Chain Intelligence Agent": {
+      "main": [
+        [
+          {
+            "node": "Stock Monitor Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stock Monitor & Reorder Decision": {
+      "main": [
+        [
+          {
+            "node": "Reorder Required?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reorder Required?": {
+      "main": [
+        [
+          {
+            "node": "Replenishment Calculation Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Advisory Response (No Reorder)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replenishment Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Replenishment Calculation Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replenishment Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Replenishment Calculation Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replenishment Calculation Agent": {
+      "main": [
+        [
+          {
+            "node": "Request CFO Approval (WF-2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request CFO Approval (WF-2)": {
+      "main": [
+        [
+          {
+            "node": "CFO Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Packaging Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Packaging Operations Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Packaging Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Packaging Operations Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Packaging Operations Agent": {
+      "main": [
+        [
+          {
+            "node": "Logistics Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Routing Operations Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Supply Chain Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Logistics Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Logistics Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Logistics Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Logistics Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Routing Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Routing Operations Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Routing Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Routing Operations Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Logistics Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Logistics & Routing Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Routing Operations Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Logistics & Routing Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execution Safety Gate": {
+      "main": [
+        [
+          {
+            "node": "Execute Real Operations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Simulation Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulation Response": {
+      "main": [
+        [
+          {
+            "node": "Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Real Operations": {
+      "main": [
+        [
+          {
+            "node": "Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Advisory Response (No Reorder)": {
+      "main": [
+        [
+          {
+            "node": "Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CFO Rejection Response": {
+      "main": [
+        [
+          {
+            "node": "Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CFO Approved?": {
+      "main": [
+        [
+          {
+            "node": "Map CFO Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Supply Chain Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map CFO Approval": {
+      "main": [
+        [
+          {
+            "node": "Packaging Operations Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Supply Chain Risk": {
+      "main": [
+        [
+          {
+            "node": "CFO Revision Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CFO Rejection Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CFO Revision Response": {
+      "main": [
+        [
+          {
+            "node": "Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Universal Contract Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Universal Contract Validation": {
+      "main": [
+        [
+          {
+            "node": "Contract Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contract Valid?": {
+      "main": [
+        [
+          {
+            "node": "System Confidence Re-Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Contract Rejection Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "System Confidence Re-Check": {
+      "main": [
+        [
+          {
+            "node": "Founder Availability Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Founder Availability Gate": {
+      "main": [
+        [
+          {
+            "node": "CREA Block Respect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREA Block Respect": {
+      "main": [
+        [
+          {
+            "node": "Input Validation & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Logistics & Routing Data": {
+      "main": [
+        [
+          {
+            "node": "Hard Execution Lock - Pre-Operations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hard Execution Lock - Pre-Operations": {
+      "main": [
+        [
+          {
+            "node": "Execution Allowed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execution Allowed?": {
+      "main": [
+        [
+          {
+            "node": "Execution Safety Gate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execution Blocked Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output Sanitization & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contract Rejection Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output Sanitization & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execution Blocked Response": {
+      "main": [
+        [
+          {
+            "node": "Final Output Sanitization & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Output Sanitization & Normalization": {
+      "main": [
+        [
+          {
+            "node": "Audit Trail Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audit Trail Logger": {
+      "main": [
+        [
+          {
+            "node": "Logging Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model - Stock Monitor": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Stock Monitor Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser - Stock Monitor": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Stock Monitor Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stock Monitor Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge - Stock Monitor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge - Stock Monitor": {
+      "main": [
+        [
+          {
+            "node": "Stock Monitor & Reorder Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "037d5fd8-d463-47ef-934d-7a68eb863c61",
+  "meta": {
+    "instanceId": "2f76907fbed960a398910145b73fdcdcdaeab5424a9d76499bbf1f155042f8f0"
+  },
+  "id": "tQ9crXF3P0NOlWDy",
+  "tags": []
+}

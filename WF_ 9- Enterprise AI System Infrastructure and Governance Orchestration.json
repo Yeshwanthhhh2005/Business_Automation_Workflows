@@ -1,0 +1,863 @@
+{
+  "name": "WF: 9- Enterprise AI System Infrastructure and Governance Orchestration",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "request_id"
+            },
+            {
+              "name": "payload",
+              "type": "object"
+            },
+            {
+              "name": "trigger_type"
+            },
+            {
+              "name": "scope"
+            }
+          ]
+        }
+      },
+      "id": "9dab94dd-7e37-44b6-b9d0-ec4aa7e826fa",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -672,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "cpu_threshold",
+              "value": 80,
+              "type": "number"
+            },
+            {
+              "id": "id-2",
+              "name": "memory_threshold",
+              "value": 85,
+              "type": "number"
+            },
+            {
+              "id": "id-3",
+              "name": "latency_threshold_ms",
+              "value": 500,
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "backup_retention_days",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "id-5",
+              "name": "security_scan_depth",
+              "value": "full",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "compliance_frameworks",
+              "value": "SOC2,GDPR,HIPAA",
+              "type": "string"
+            },
+            {
+              "id": "cfg-monitoring_endpoint",
+              "name": "monitoring_endpoint",
+              "value": "https://httpbin.org/post",
+              "type": "string"
+            },
+            {
+              "id": "wf10-url-assign",
+              "name": "wf10_webhook_url",
+              "value": "http://localhost:5678/webhook/wf10-decision-contract",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "027363b4-6fad-4a10-ae81-c57c81c10215",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -448,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\nconst infra_id = `infra_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\nconst timestamp = new Date().toISOString();\n\nlet severity = 'low';\nif (input.trigger_type === 'incident' || input.trigger_type === 'security_audit') {\n  severity = 'high';\n} else if (input.trigger_type === 'scaling_event') {\n  severity = 'medium';\n}\n\n// WF-9 operates in pure observer mode - no authority to enforce or block\nreturn {\n  json: {\n    ...input,\n    infra_id,\n    timestamp,\n    severity,\n    observer_mode: true,\n    wf9_role: 'observer_only'\n  }\n};"
+      },
+      "id": "d31b82f2-f595-4fef-ab2f-3959265ba96f",
+      "name": "Input Normalization & Trace Tagging",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Observer only - reports status, does not decide autoscale\nconst config = $('Workflow Configuration').first().json;\nconst cpu_usage = Math.random() * 100;\nconst memory_usage = Math.random() * 100;\nconst latency = Math.random() * 1000;\nconst uptime = 99.5 + Math.random() * 0.5;\n\nlet infra_status = 'healthy';\n\nif (cpu_usage > config.cpu_threshold || memory_usage > config.memory_threshold) {\n  infra_status = 'degraded';\n}\n\nif (latency > config.latency_threshold_ms || uptime < 99.5) {\n  infra_status = 'critical';\n}\n\nreturn {\n  json: {\n    check_type: 'infrastructure_health',\n    infra_status,\n    metrics: {\n      cpu_usage: cpu_usage.toFixed(2),\n      memory_usage: memory_usage.toFixed(2),\n      latency_ms: latency.toFixed(2),\n      uptime_percent: uptime.toFixed(3)\n    }\n  }\n};"
+      },
+      "id": "3b496ecb-0df0-4075-ba5e-b24aba1a60cb",
+      "name": "Infrastructure Health Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const service_availability = Math.random() > 0.05;\nconst workflow_failures = Math.floor(Math.random() * 10);\nconst corrupted_states = Math.random() > 0.95 ? ['workflow_state_123'] : [];\nconst integrity_ok = service_availability && workflow_failures < 5 && corrupted_states.length === 0;\n\nreturn {\n  json: {\n    check_type: 'system_integrity',\n    integrity_ok,\n    failed_components: corrupted_states,\n    metrics: {\n      service_availability,\n      workflow_failures,\n      corrupted_states_count: corrupted_states.length\n    }\n  }\n};"
+      },
+      "id": "f6abd4f3-f5b1-46bd-a494-1f594aac00e0",
+      "name": "System Integrity Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('Workflow Configuration').first().json;\nconst vulnerability_count = Math.floor(Math.random() * 5);\nconst intrusion_attempts = Math.floor(Math.random() * 20);\nconst key_misuse_detected = Math.random() > 0.98;\nconst abnormal_traffic = Math.random() > 0.9;\n\nlet security_risk = 'low';\nconst threats = [];\n\nif (vulnerability_count > 2 || key_misuse_detected) {\n  security_risk = 'high';\n  threats.push('Critical vulnerabilities detected');\n} else if (intrusion_attempts > 10 || abnormal_traffic) {\n  security_risk = 'medium';\n  threats.push('Elevated intrusion attempts');\n}\n\nreturn {\n  json: {\n    check_type: 'cybersecurity',\n    security_risk,\n    threats,\n    metrics: {\n      vulnerability_count,\n      intrusion_attempts,\n      key_misuse_detected,\n      abnormal_traffic\n    }\n  }\n};"
+      },
+      "id": "7f5d96d7-5925-49cb-bbc7-d5b6eaf450e5",
+      "name": "Cybersecurity Scan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('Workflow Configuration').first().json;\nconst data_retention_ok = Math.random() > 0.1;\nconst encryption_ok = Math.random() > 0.05;\nconst access_policies_ok = Math.random() > 0.1;\nconst regulatory_alignment_ok = Math.random() > 0.15;\nconst violations = [];\nif (!data_retention_ok) violations.push('Data retention policy violation');\nif (!encryption_ok) violations.push('Encryption standards not met');\nif (!access_policies_ok) violations.push('Access policy gaps detected');\nif (!regulatory_alignment_ok) violations.push('Regulatory alignment issues');\nconst compliance_ok = violations.length === 0;\nreturn {\n  json: {\n    check_type: 'it_compliance',\n    compliance_ok,\n    violations,\n    frameworks_checked: config.compliance_frameworks.split(',')\n  }\n};"
+      },
+      "id": "7bd2b3fe-2cae-41e4-998c-b9bf1aafaf19",
+      "name": "IT Compliance Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Observer only - reports access issues, does not decide lockdown\nconst privileged_access_violations = Math.floor(Math.random() * 3);\nconst token_misuse = Math.random() > 0.95;\nconst role_boundary_breaches = Math.floor(Math.random() * 2);\n\nconst access_issues = [];\nif (privileged_access_violations > 0) access_issues.push(`${privileged_access_violations} privileged access violations`);\nif (token_misuse) access_issues.push('Token misuse detected');\nif (role_boundary_breaches > 0) access_issues.push(`${role_boundary_breaches} role boundary breaches`);\n\nreturn {\n  json: {\n    check_type: 'access_control',\n    access_issues,\n    metrics: {\n      privileged_access_violations,\n      token_misuse,\n      role_boundary_breaches\n    }\n  }\n};"
+      },
+      "id": "9f2ac7de-8798-416c-882e-4b94db803db9",
+      "name": "Access Control Audit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const pipeline_failures = Math.floor(Math.random() * 5);\nconst etl_errors = Math.floor(Math.random() * 10);\nconst stale_sources = Math.random() > 0.85 ? ['data_source_A', 'data_source_B'] : [];\nconst pipelines_ok = pipeline_failures === 0 && etl_errors < 5 && stale_sources.length === 0;\n\nreturn {\n  json: {\n    check_type: 'data_engineering',\n    pipelines_ok,\n    stale_sources,\n    metrics: {\n      pipeline_failures,\n      etl_errors,\n      stale_sources_count: stale_sources.length\n    }\n  }\n};"
+      },
+      "id": "39989336-de40-4aa2-a38f-6ebe895309ea",
+      "name": "Data Engineering Monitor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Observer only - reports graph health, does not decide repairs\nconst graph_consistency_score = 0.85 + Math.random() * 0.15;\nconst embedding_drift = Math.random() * 0.3;\nconst broken_relationships = Math.floor(Math.random() * 10);\n\nlet graph_health = 'ok';\n\nif (graph_consistency_score < 0.9 || embedding_drift > 0.2 || broken_relationships > 5) {\n  graph_health = 'degraded';\n}\n\nreturn {\n  json: {\n    check_type: 'knowledge_graph',\n    graph_health,\n    metrics: {\n      graph_consistency_score: graph_consistency_score.toFixed(3),\n      embedding_drift: embedding_drift.toFixed(3),\n      broken_relationships\n    }\n  }\n};"
+      },
+      "id": "6f2eb2cb-e21d-4d1f-a8a7-1b2430bd38b2",
+      "name": "Knowledge Graph Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const total_workflows = 50 + Math.floor(Math.random() * 50);\nconst active_workflows = Math.floor(total_workflows * (0.6 + Math.random() * 0.3));\nconst total_executions = 1000 + Math.floor(Math.random() * 5000);\nconst failed_executions = Math.floor(total_executions * (0.01 + Math.random() * 0.05));\nconst avg_execution_time_ms = 500 + Math.random() * 2000;\nconst cost_usd = 100 + Math.random() * 900;\n\nreturn {\n  json: {\n    check_type: 'data_analytics',\n    kpis: {\n      total_workflows,\n      active_workflows,\n      total_executions,\n      failed_executions,\n      success_rate: ((total_executions - failed_executions) / total_executions * 100).toFixed(2),\n      avg_execution_time_ms: avg_execution_time_ms.toFixed(2),\n      estimated_monthly_cost_usd: cost_usd.toFixed(2)\n    }\n  }\n};"
+      },
+      "id": "a6bd2344-15c2-4aa7-8795-8f4210747a27",
+      "name": "Data Analytics KPI Generation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1344
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('Workflow Configuration').first().json;\nconst last_backup_hours_ago = Math.floor(Math.random() * 48);\nconst backup_completed = last_backup_hours_ago < 24;\nconst restore_points_valid = Math.random() > 0.1;\nconst backup_status = backup_completed && restore_points_valid ? 'ok' : 'failed';\nconst last_backup = new Date(Date.now() - last_backup_hours_ago * 3600000).toISOString();\n\nreturn {\n  json: {\n    check_type: 'backup_operations',\n    backup_status,\n    last_backup,\n    metrics: {\n      last_backup_hours_ago,\n      restore_points_valid,\n      retention_days: config.backup_retention_days\n    }\n  }\n};"
+      },
+      "id": "6dc27821-941d-46cd-81a1-24b6967091e0",
+      "name": "Backup Operations Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1536
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 9,
+        "options": {}
+      },
+      "id": "311e7f3f-3d7a-4897-82d0-43edf7c3c024",
+      "name": "Aggregate System Signals",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        224,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "id": "7b16aabb-967c-449f-accd-240c5f2d0e13",
+      "name": "OpenAI Chat Model - CTO",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        464,
+        992
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"alert_type\":{\"type\":\"string\",\"enum\":[\"infra_degradation\",\"security_risk\",\"performance_issue\",\"system_failure\"]},\"severity\":{\"type\":\"string\",\"enum\":[\"low\",\"medium\",\"high\"]},\"metrics\":{\"type\":\"object\"},\"recommended_action\":{\"type\":\"string\",\"enum\":[\"pause\",\"throttle\",\"investigate\",\"autoscale\",\"lockdown\",\"none\"]},\"confidence\":{\"type\":\"number\",\"minimum\":0,\"maximum\":1},\"reasoning\":{\"type\":\"string\"},\"requires_wf10_review\":{\"type\":\"boolean\"},\"requires_crea_review\":{\"type\":\"boolean\"},\"observed_issues\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}},\"required\":[\"alert_type\",\"severity\",\"metrics\",\"recommended_action\",\"confidence\",\"reasoning\",\"requires_wf10_review\",\"requires_crea_review\"]}"
+      },
+      "id": "ad98bf10-e8d2-4764-a994-3a4aa66bf6fc",
+      "name": "Structured Output Parser - Decision",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        592,
+        992
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the CTO Orchestrator (L2, Technology) for WF-9. Synthesize the technology signals (System Integrity, Data Engineering, Knowledge Graph, Data Analytics) from the aggregated input. Detect anomalies/degradation in the AI platform, data pipelines and knowledge graph, and recommend an action. You are advisory only - WF-10 decides. Return JSON only in the required schema."
+        }
+      },
+      "id": "55acb8f0-479b-41c1-81c7-c9c0c9daf3ae",
+      "name": "CTO Orchestrator Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        448,
+        768
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Workflow Configuration').item.json.monitoring_endpoint }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-WF9-Role",
+              "value": "observer-only"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {},
+        "infoMessage": "WF-9 Telemetry Logger - Passive observation data only, no control authority"
+      },
+      "id": "debb186f-83d8-4163-b117-a353f3eef74c",
+      "name": "Central Infra Decision Logger",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1248,
+        768
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "source_workflow",
+              "value": "WF-9",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "signal_type",
+              "value": "infrastructure_observation",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "request_id",
+              "value": "={{ $('Input Normalization & Trace Tagging').item.json.infra_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "alert_type",
+              "value": "={{ $('CTO & CIO Orchestration Agent').item.json.alert_type }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "severity",
+              "value": "={{ $('CTO & CIO Orchestration Agent').item.json.severity }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "confidence",
+              "value": "={{ $('CTO & CIO Orchestration Agent').item.json.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "id-7",
+              "name": "recommended_action",
+              "value": "={{ $('CTO & CIO Orchestration Agent').item.json.recommended_action }}",
+              "type": "string"
+            },
+            {
+              "id": "id-8",
+              "name": "reasoning",
+              "value": "={{ $('CTO & CIO Orchestration Agent').item.json.reasoning }}",
+              "type": "string"
+            },
+            {
+              "id": "id-9",
+              "name": "metrics",
+              "value": "={{ JSON.stringify($('CTO & CIO Orchestration Agent').item.json.metrics || {}) }}",
+              "type": "object"
+            },
+            {
+              "id": "id-10",
+              "name": "requires_wf10_review",
+              "value": "={{ $('CTO & CIO Orchestration Agent').item.json.requires_wf10_review }}",
+              "type": "boolean"
+            },
+            {
+              "id": "id-11",
+              "name": "timestamp",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-12",
+              "name": "requires_crea_review",
+              "value": "={{ $('CTO & CIO Orchestration Agent').item.json.requires_crea_review }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c7a347ca-f50f-4fe3-92ea-0b63dd2e197a",
+      "name": "Final Output Sanitization & Normalization",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1472,
+        768
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build WF-9 signal payload for WF-10\nconst observerSignal = $json;\nconst inputData = $('Input Normalization & Trace Tagging').first().json;\nconst configData = $('Workflow Configuration').first().json;\n\n// WF-9 standardized signal format for WF-10\nconst wf9Signal = {\n  source_workflow: 'WF-9',\n  signal_type: 'infrastructure_observation',\n  request_id: inputData.infra_id || `req_${Date.now()}`,\n  timestamp: new Date().toISOString(),\n  \n  // Observer assessment (advisory only)\n  alert_type: observerSignal.alert_type,\n  severity: observerSignal.severity,\n  confidence: observerSignal.confidence,\n  recommended_action: observerSignal.recommended_action,\n  reasoning: observerSignal.reasoning,\n  \n  // Metrics and telemetry\n  metrics: observerSignal.metrics || {},\n  observed_issues: observerSignal.observed_issues || [],\n  \n  // Routing flags (WF-10 decides actual routing)\n  requires_wf10_review: observerSignal.requires_wf10_review || false,\n  requires_crea_review: observerSignal.requires_crea_review || false,\n  \n  // Input context\n  input_context: {\n    trigger_type: inputData.trigger_type,\n    scope: inputData.scope,\n    severity: inputData.severity,\n    infra_id: inputData.infra_id\n  },\n  \n  // Configuration snapshot\n  config_snapshot: {\n    cpu_threshold: configData.cpu_threshold,\n    memory_threshold: configData.memory_threshold,\n    latency_threshold_ms: configData.latency_threshold_ms,\n    compliance_frameworks: configData.compliance_frameworks\n  },\n  \n  // Metadata\n  workflow_id: $workflow.id,\n  workflow_name: $workflow.name,\n  execution_id: $execution.id,\n  \n  // WF-9 role declaration\n  observer_note: 'WF-9 observes and reports only. WF-10 decides all actions.'\n};\n\nreturn {\n  json: wf9Signal\n};"
+      },
+      "id": "4215ed7d-9bc9-45eb-a3a8-3e436d31c923",
+      "name": "Prepare Central Log Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        768
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Workflow Configuration').item.json.wf10_webhook_url }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "831b8acf-798d-42e9-894a-d27c9347a260",
+      "name": "Send Signal to WF-10 (Governance Authority)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        768
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the CIO Orchestrator (L2, Infrastructure) for WF-9. Synthesize the infrastructure & security signals (Infrastructure Health, Cybersecurity, IT Compliance, Access Control, Backup Operations) from the aggregated input. Detect uptime/security/compliance risks and recommend an action. You are advisory only - WF-10 decides. Return JSON only in the required schema."
+        }
+      },
+      "id": "00ce04d7-cec6-40c5-9db5-7b5dcd8fda78",
+      "name": "CIO Orchestrator Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        448,
+        1500
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "d5260a44-3255-40d3-bfde-66d3653a9851",
+      "name": "OpenAI Chat Model - CIO",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        464,
+        1720
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"alert_type\": {\"type\": \"string\", \"enum\": [\"infra_degradation\", \"security_risk\", \"performance_issue\", \"system_failure\"]}, \"severity\": {\"type\": \"string\", \"enum\": [\"low\", \"medium\", \"high\"]}, \"metrics\": {\"type\": \"object\"}, \"recommended_action\": {\"type\": \"string\", \"enum\": [\"pause\", \"throttle\", \"investigate\", \"autoscale\", \"lockdown\", \"none\"]}, \"confidence\": {\"type\": \"number\", \"minimum\": 0, \"maximum\": 1}, \"reasoning\": {\"type\": \"string\"}, \"requires_wf10_review\": {\"type\": \"boolean\"}, \"requires_crea_review\": {\"type\": \"boolean\"}, \"observed_issues\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"alert_type\", \"severity\", \"recommended_action\", \"confidence\", \"reasoning\", \"requires_wf10_review\", \"requires_crea_review\"]}"
+      },
+      "id": "08f5059a-036e-47d3-9610-a6ce3fe29e85",
+      "name": "Structured Output Parser - CIO",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        592,
+        1720
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine CTO (technology) + CIO (infrastructure) orchestrator decisions\nconst sev={low:1,medium:2,high:3};\nconst cto=$('CTO Orchestrator Agent').first().json||{};\nconst cio=$('CIO Orchestrator Agent').first().json||{};\nconst pick=(a,b)=>((sev[a]||0)>=(sev[b]||0)?a:b);\nconst severity=pick(cto.severity,cio.severity)||'low';\nconst issues=[].concat(cto.observed_issues||[],cio.observed_issues||[]);\nconst order=['none','investigate','throttle','autoscale','pause','lockdown'];\nconst action=(order.indexOf(cto.recommended_action)>=order.indexOf(cio.recommended_action))?cto.recommended_action:cio.recommended_action;\nreturn [{ json: {\n  source_workflow:'WF-9', department:'tech_infra',\n  cto_decision:cto, cio_decision:cio,\n  severity:severity, recommended_action:action||'none',\n  observed_issues:issues,\n  requires_wf10_review:(cto.requires_wf10_review||cio.requires_wf10_review||false),\n  requires_crea_review:(cto.requires_crea_review||cio.requires_crea_review||false),\n  confidence:Math.min(cto.confidence??0.9, cio.confidence??0.9),\n  reasoning:'CTO: '+(cto.reasoning||'')+' | CIO: '+(cio.reasoning||'')\n}}];"
+      },
+      "id": "02305779-e796-4021-9bde-804324750043",
+      "name": "Merge CTO + CIO Decisions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        1100
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Normalization & Trace Tagging": {
+      "main": [
+        [
+          {
+            "node": "Infrastructure Health Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "System Integrity Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Cybersecurity Scan",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IT Compliance Validation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Access Control Audit",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Data Engineering Monitor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Knowledge Graph Validation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Data Analytics KPI Generation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Backup Operations Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Infrastructure Health Check": {
+      "main": [
+        [
+          {
+            "node": "Aggregate System Signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "System Integrity Check": {
+      "main": [
+        [
+          {
+            "node": "Aggregate System Signals",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Cybersecurity Scan": {
+      "main": [
+        [
+          {
+            "node": "Aggregate System Signals",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "IT Compliance Validation": {
+      "main": [
+        [
+          {
+            "node": "Aggregate System Signals",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Access Control Audit": {
+      "main": [
+        [
+          {
+            "node": "Aggregate System Signals",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Data Engineering Monitor": {
+      "main": [
+        [
+          {
+            "node": "Aggregate System Signals",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "Knowledge Graph Validation": {
+      "main": [
+        [
+          {
+            "node": "Aggregate System Signals",
+            "type": "main",
+            "index": 6
+          }
+        ]
+      ]
+    },
+    "Data Analytics KPI Generation": {
+      "main": [
+        [
+          {
+            "node": "Aggregate System Signals",
+            "type": "main",
+            "index": 7
+          }
+        ]
+      ]
+    },
+    "Backup Operations Check": {
+      "main": [
+        [
+          {
+            "node": "Aggregate System Signals",
+            "type": "main",
+            "index": 8
+          }
+        ]
+      ]
+    },
+    "Aggregate System Signals": {
+      "main": [
+        [
+          {
+            "node": "CTO Orchestrator Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "CIO Orchestrator Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser - Decision": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "CTO Orchestrator Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Input Normalization & Trace Tagging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Central Log Payload": {
+      "main": [
+        [
+          {
+            "node": "Central Infra Decision Logger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Central Infra Decision Logger": {
+      "main": [
+        [
+          {
+            "node": "Final Output Sanitization & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Signal to WF-10 (Governance Authority)": {
+      "main": [
+        [
+          {
+            "node": "Prepare Central Log Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CTO Orchestrator Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge CTO + CIO Decisions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - CTO": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CTO Orchestrator Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - CIO": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CIO Orchestrator Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser - CIO": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "CIO Orchestrator Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CIO Orchestrator Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge CTO + CIO Decisions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge CTO + CIO Decisions": {
+      "main": [
+        [
+          {
+            "node": "Send Signal to WF-10 (Governance Authority)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "89fc9517-b679-4b35-b6a2-b77895ecb1aa",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2f76907fbed960a398910145b73fdcdcdaeab5424a9d76499bbf1f155042f8f0"
+  },
+  "id": "buYXMmxB3EmybKBk",
+  "tags": []
+}

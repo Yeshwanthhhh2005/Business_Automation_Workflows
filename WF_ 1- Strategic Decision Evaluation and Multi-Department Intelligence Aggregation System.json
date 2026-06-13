@@ -1,0 +1,1687 @@
+{
+  "name": "WF: 1- Strategic Decision Evaluation and Multi-Department Intelligence Aggregation System",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "request_id"
+            },
+            {
+              "name": "mode"
+            },
+            {
+              "name": "confidence",
+              "type": "number"
+            },
+            {
+              "name": "risk_level"
+            },
+            {
+              "name": "payload",
+              "type": "object"
+            },
+            {
+              "name": "audit",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "id": "3c2c52e1-23fc-426d-b6cc-29eb5b94e6c5",
+      "name": "Workflow-0 Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1696,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "workflow_name",
+              "value": "WF-1",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "min_score_threshold",
+              "value": 6,
+              "type": "number"
+            },
+            {
+              "id": "id-3",
+              "name": "high_risk_keyword",
+              "value": "high",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "ddfa822c-78fe-4d55-bd31-d26149862f1e",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1472,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input Validation & Normalization for CBS Strategic Evaluation\n// Validates incoming request and normalizes data structure\n// Preserves all Universal Contract fields from WF-0 Trigger\n\nconst uuidv4 = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); });\n\n// Get input from Workflow-0 Trigger\nconst inputItems = $input.all();\n\nif (inputItems.length === 0) {\n  throw new Error('No input data received from Workflow-0 Trigger');\n}\n\nconst inputData = inputItems[0].json;\n\n// Get workflow configuration\nconst config = $('Workflow Configuration').first().json;\n\n// Define mandatory fields\nconst mandatoryFields = [\n  'request_id',\n  'intent_summary',\n  'department',\n  'task_type',\n  'risk_level',\n  'urgency',\n  'mode'\n];\n\n// Validate mandatory fields\nconst missingFields = mandatoryFields.filter(field => !inputData[field]);\n\nif (missingFields.length > 0) {\n  throw new Error(`Missing mandatory fields: ${missingFields.join(', ')}`);\n}\n\n// Validate task_type is 'strategic'\nif (inputData.task_type !== 'strategic') {\n  throw new Error(`Invalid task_type: '${inputData.task_type}'. CBS only processes 'strategic' tasks.`);\n}\n\n// Generate strategy_id\nconst strategy_id = uuidv4();\n\n// Build normalized output schema\n// Preserve all Universal Contract fields from WF-0 Trigger\nconst normalizedOutput = {\n  // Universal Contract fields (preserved from WF-0 Trigger)\n  request_id: inputData.request_id,\n  mode: inputData.mode,\n  confidence: inputData.confidence || null,\n  risk_level: inputData.risk_level,\n  payload: inputData.payload || {},\n  audit: inputData.audit || {},\n  \n  // CBS-specific fields\n  strategy_id: strategy_id,\n  intent_summary: inputData.intent_summary,\n  timestamp: new Date().toISOString(),\n  workflow_name: config.workflow_name || 'WF-1: CBS Strategic Evaluation',\n  \n  // Preserve additional fields for context\n  department: inputData.department,\n  task_type: inputData.task_type,\n  urgency: inputData.urgency,\n  \n  // Keep original request for full context\n  original_request: inputData\n};\n\nreturn [normalizedOutput];"
+      },
+      "id": "8c6844c5-1e6d-4b93-9a67-aedfd7059275",
+      "name": "Input Validation & Normalization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1024,
+        656
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "49f4ae27-58d9-4ac8-9e9a-fcf44559938e",
+      "name": "OpenAI Model - CBS",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -800,
+        880
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"strategy_summary\": {\n      \"type\": \"string\",\n      \"description\": \"Summary of the strategy being evaluated\"\n    },\n    \"scores\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"market_feasibility\": {\n          \"type\": \"number\",\n          \"minimum\": 0,\n          \"maximum\": 10,\n          \"description\": \"Market feasibility score from 0 to 10\"\n        },\n        \"cost_impact\": {\n          \"type\": \"number\",\n          \"minimum\": 0,\n          \"maximum\": 10,\n          \"description\": \"Cost impact score from 0 to 10\"\n        },\n        \"risk\": {\n          \"type\": \"number\",\n          \"minimum\": 0,\n          \"maximum\": 10,\n          \"description\": \"Risk score from 0 to 10\"\n        },\n        \"time_to_value\": {\n          \"type\": \"number\",\n          \"minimum\": 0,\n          \"maximum\": 10,\n          \"description\": \"Time to value score from 0 to 10\"\n        },\n        \"strategic_fit\": {\n          \"type\": \"number\",\n          \"minimum\": 0,\n          \"maximum\": 10,\n          \"description\": \"Strategic fit score from 0 to 10\"\n        },\n        \"overall_score\": {\n          \"type\": \"number\",\n          \"minimum\": 0,\n          \"maximum\": 10,\n          \"description\": \"Overall score from 0 to 10\"\n        }\n      },\n      \"required\": [\"market_feasibility\", \"cost_impact\", \"risk\", \"time_to_value\", \"strategic_fit\", \"overall_score\"]\n    },\n    \"risk_level\": {\n      \"type\": \"string\",\n      \"enum\": [\"low\", \"medium\", \"high\"],\n      \"description\": \"Risk level classification\"\n    },\n    \"initial_decision\": {\n      \"type\": \"string\",\n      \"enum\": [\"go\", \"no_go\", \"needs_review\"],\n      \"description\": \"Initial decision on the strategy\"\n    },\n    \"key_assumptions\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      },\n      \"description\": \"List of key assumptions for the strategy\"\n    },\n    \"major_risks\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      },\n      \"description\": \"List of major risks identified\"\n    }\n  },\n  \"required\": [\"strategy_summary\", \"scores\", \"risk_level\", \"initial_decision\", \"key_assumptions\", \"major_risks\"]\n}"
+      },
+      "id": "b7b1762a-5b94-46ad-9e64-52a996b0814f",
+      "name": "CBS Strategy Evaluation Schema",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -672,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.intent_summary }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Chief Business Strategist (CBS) for a cosmetic brand. Your role is to evaluate strategic decisions that affect multiple departments, long-term direction, cost, risk, and scalability.\n\nYour task:\n1. Analyze the strategic intent in business terms\n2. Score the strategy across 5 dimensions (0-10 scale):\n   - Market Feasibility: Demand, trends, competitive landscape\n   - Cost Impact: Budget requirements, burn rate, ROI potential\n   - Risk: Legal, brand reputation, operational risks\n   - Time-to-Value: Speed to market, implementation timeline\n   - Strategic Fit: Alignment with brand vision and values\n3. Calculate overall score (average of all dimensions)\n4. Determine risk level (low/medium/high)\n5. Make initial decision (go/no_go/needs_review)\n6. List key assumptions and major risks\n\nBe thorough, objective, and business-focused. Consider both opportunities and threats."
+        }
+      },
+      "id": "d9d9a530-9e03-4b6d-8842-5004da94e0e3",
+      "name": "CBS Agent - Strategy Evaluation",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -816,
+        640
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('CBS Agent - Strategy Evaluation').item.json.scores.overall_score }}",
+              "rightValue": "={{ $('Workflow Configuration').first().json.min_score_threshold }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "58bcc509-5cc3-476f-8eb0-1449657cea1f",
+      "name": "GO/NO-GO Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -448,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "workflow_id",
+              "value": "WF-1",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "request_id",
+              "value": "={{ $('Workflow-0 Trigger').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "status",
+              "value": "completed",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "decision",
+              "value": "NO-GO",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "decision_summary",
+              "value": "Strategy rejected: Overall score below threshold",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "confidence",
+              "value": "={{ $('Workflow-0 Trigger').item.json.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "id-7",
+              "name": "strategy_score",
+              "value": "={{ $('CBS Agent - Strategy Evaluation').item.json.scores.overall_score / 10 }}",
+              "type": "number"
+            },
+            {
+              "id": "id-8",
+              "name": "risk_level",
+              "value": "={{ $('CBS Agent - Strategy Evaluation').item.json.risk_level }}",
+              "type": "string"
+            },
+            {
+              "id": "id-9",
+              "name": "human_approval_required",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-10",
+              "name": "crea_reviewed",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-11",
+              "name": "approvals",
+              "value": "[]",
+              "type": "array"
+            },
+            {
+              "id": "id-12",
+              "name": "next_allowed_actions",
+              "value": "[]",
+              "type": "array"
+            },
+            {
+              "id": "id-13",
+              "name": "logs",
+              "value": "[\"Strategy evaluation failed minimum score threshold\"]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5ba3ef04-0bc8-4370-af63-e46e837619ab",
+      "name": "Build NO-GO Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -224,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log NO-GO Decision\nconst items = $input.all();\n\nfor (const item of items) {\n  const logEntry = {\n    decision: 'NO-GO',\n    strategy_id: item.json.strategy_id || 'N/A',\n    scores: item.json.scores || {},\n    final_decision: item.json.decision || 'NO-GO',\n    timestamp: new Date().toISOString(),\n    reason: item.json.reasoning || item.json.reason || 'Strategy did not meet GO criteria'\n  };\n  \n  console.log('=== NO-GO DECISION LOGGED ===');\n  console.log(JSON.stringify(logEntry, null, 2));\n  console.log('============================');\n}\n\n// Return input data unchanged\nreturn items;"
+      },
+      "id": "71f189b6-8488-4cac-9c80-7866a87ac066",
+      "name": "Log NO-GO Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Workflow-0 Trigger').item.json.risk_level }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d8e825da-dc34-4722-95eb-012e20a78aea",
+      "name": "Check Risk Level",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "q1UDzKI9hUOR816f",
+          "mode": "id",
+          "cachedResultName": "q1UDzKI9hUOR816f"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "request_id": "={{ $('Workflow-0 Trigger').item.json.request_id }}",
+            "confidence": "={{ $('Workflow-0 Trigger').item.json.confidence }}",
+            "risk_level": "={{ $('Workflow-0 Trigger').item.json.risk_level }}",
+            "strategic_summary": "={{ $('CBS Agent - Strategy Evaluation').item.json.strategy_summary }}",
+            "mode": "={{ $('Workflow-0 Trigger').item.json.mode }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "ed03129c-c5b8-437f-9042-b71dde8ec8a8",
+      "name": "CREA Escalation - WF-8",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        224,
+        704
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('CREA Escalation - WF-8').item.json.approved }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7b48d4bf-7d70-48a4-92cb-726824c7ab5c",
+      "name": "CREA Approval Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "workflow_id",
+              "value": "WF-1",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "request_id",
+              "value": "={{ $('Workflow-0 Trigger').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "status",
+              "value": "blocked",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "decision",
+              "value": "NO-GO",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "decision_summary",
+              "value": "=Strategy blocked by CREA: {{ $('CREA Escalation - WF-8').item.json.reason }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "confidence",
+              "value": "={{ $('Workflow-0 Trigger').item.json.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "id-7",
+              "name": "strategy_score",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "id-8",
+              "name": "risk_level",
+              "value": "high",
+              "type": "string"
+            },
+            {
+              "id": "id-9",
+              "name": "human_approval_required",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-10",
+              "name": "crea_reviewed",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-11",
+              "name": "approvals",
+              "value": "[]",
+              "type": "array"
+            },
+            {
+              "id": "id-12",
+              "name": "next_allowed_actions",
+              "value": "[]",
+              "type": "array"
+            },
+            {
+              "id": "id-13",
+              "name": "logs",
+              "value": "[\"CREA rejection logged\"]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "69c6efb1-0408-44ae-a70f-07ccfab88838",
+      "name": "Build CREA Rejection Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log CREA rejection details\nconst inputData = $input.all();\n\nfor (const item of inputData) {\n  const strategyId = item.json.strategy_id || 'UNKNOWN';\n  const creaReason = item.json.crea_rejection_reason || item.json.rejection_reason || 'No reason provided';\n  const timestamp = new Date().toISOString();\n  \n  console.log('=== CREA REJECTION LOGGED ===');\n  console.log('Strategy ID:', strategyId);\n  console.log('CREA Rejection Reason:', creaReason);\n  console.log('Timestamp:', timestamp);\n  console.log('============================');\n}\n\n// Return input data unchanged\nreturn inputData;"
+      },
+      "id": "f099a667-55bc-4479-9ea9-72b1cd37a6fc",
+      "name": "Log CREA Rejection",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rNv9DzGl7IFHotwO",
+          "mode": "id",
+          "cachedResultName": "rNv9DzGl7IFHotwO"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "35b0a2f5-00f8-402a-910c-46bfffae54cd",
+      "name": "CFO Consultation - WF-2",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "tQ9crXF3P0NOlWDy",
+          "mode": "id",
+          "cachedResultName": "tQ9crXF3P0NOlWDy"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "4537b78d-bfcb-40c3-8d74-23cd56299024",
+      "name": "COO Consultation - WF-3",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "IYl2NVikGCyySSU2",
+          "mode": "id",
+          "cachedResultName": "IYl2NVikGCyySSU2"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "dd66b91d-6c3c-4de0-9fff-7e27331ca587",
+      "name": "CMO Consultation - WF-5",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "fjiL4YeNQ7FN4Yn5",
+          "mode": "id",
+          "cachedResultName": "fjiL4YeNQ7FN4Yn5"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "ba1d7a0a-b1de-444e-bdaf-33fc40621e92",
+      "name": "CSO Consultation - WF-6",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "wruDXEwcbxlP2D7x",
+          "mode": "id",
+          "cachedResultName": "wruDXEwcbxlP2D7x"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "d07eeb32-0977-4329-b48f-f177981163e3",
+      "name": "AFA Consultation - WF-4",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        1296
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "e2935e7a-0066-454b-85e2-1634498990ff",
+      "name": "Aggregate Department Responses",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Consolidate & Analyze Feedback from All Departments\n// This code processes aggregated department responses and creates a unified strategic plan\n\nconst items = $input.all();\n\n// Initialize consolidated data structure\nconst consolidatedData = {\n  final_decision: 'go', // Default to 'go', will be updated based on analysis\n  department_feedback: {\n    finance: null,\n    operations: null,\n    marketing: null,\n    sales: null,\n    rnd: null\n  },\n  synergies: [],\n  conflicts: [],\n  recommended_next_steps: [],\n  warnings: []\n};\n\n// Track decision votes\nconst decisionVotes = {\n  go: 0,\n  no_go: 0,\n  revise: 0\n};\n\n// Process each department response\nfor (const item of items) {\n  const data = item.json;\n  \n  // Determine which department this response is from\n  let department = null;\n  if (data.department) {\n    department = data.department.toLowerCase();\n  } else if (data.source) {\n    department = data.source.toLowerCase();\n  }\n  \n  // Map department names to standard keys\n  const deptMapping = {\n    'finance': 'finance',\n    'cfo': 'finance',\n    'operations': 'operations',\n    'coo': 'operations',\n    'marketing': 'marketing',\n    'cmo': 'marketing',\n    'sales': 'sales',\n    'cso': 'sales',\n    'r&d': 'rnd',\n    'rnd': 'rnd',\n    'afa': 'rnd',\n    'research': 'rnd'\n  };\n  \n  const mappedDept = deptMapping[department] || department;\n  \n  // Store department feedback\n  if (mappedDept && consolidatedData.department_feedback.hasOwnProperty(mappedDept)) {\n    consolidatedData.department_feedback[mappedDept] = {\n      recommendation: data.recommendation || data.decision || 'unknown',\n      key_insights: data.key_insights || data.insights || [],\n      concerns: data.concerns || data.risks || [],\n      opportunities: data.opportunities || [],\n      confidence_score: data.confidence_score || data.confidence || 0\n    };\n    \n    // Count decision votes\n    const decision = (data.recommendation || data.decision || '').toLowerCase();\n    if (decision.includes('go') && !decision.includes('no')) {\n      decisionVotes.go++;\n    } else if (decision.includes('no_go') || decision.includes('reject')) {\n      decisionVotes.no_go++;\n    } else if (decision.includes('revise') || decision.includes('modify')) {\n      decisionVotes.revise++;\n    }\n  }\n  \n  // Collect synergies\n  if (data.synergies && Array.isArray(data.synergies)) {\n    consolidatedData.synergies.push(...data.synergies);\n  }\n  \n  // Collect warnings\n  if (data.warnings && Array.isArray(data.warnings)) {\n    consolidatedData.warnings.push(...data.warnings);\n  }\n  if (data.risks && Array.isArray(data.risks)) {\n    consolidatedData.warnings.push(...data.risks);\n  }\n}\n\n// Identify conflicts between departments\nconst departments = Object.keys(consolidatedData.department_feedback);\nfor (let i = 0; i < departments.length; i++) {\n  for (let j = i + 1; j < departments.length; j++) {\n    const dept1 = departments[i];\n    const dept2 = departments[j];\n    const feedback1 = consolidatedData.department_feedback[dept1];\n    const feedback2 = consolidatedData.department_feedback[dept2];\n    \n    if (feedback1 && feedback2) {\n      const rec1 = (feedback1.recommendation || '').toLowerCase();\n      const rec2 = (feedback2.recommendation || '').toLowerCase();\n      \n      // Check for conflicting recommendations\n      if ((rec1.includes('go') && rec2.includes('no_go')) ||\n          (rec1.includes('no_go') && rec2.includes('go'))) {\n        consolidatedData.conflicts.push({\n          departments: [dept1, dept2],\n          conflict_type: 'recommendation_mismatch',\n          details: `${dept1} recommends '${feedback1.recommendation}' while ${dept2} recommends '${feedback2.recommendation}'`\n        });\n      }\n    }\n  }\n}\n\n// Determine final decision based on votes and conflicts\nif (decisionVotes.no_go > 0 || consolidatedData.conflicts.length > 2) {\n  consolidatedData.final_decision = 'no_go';\n} else if (decisionVotes.revise > decisionVotes.go || consolidatedData.conflicts.length > 0) {\n  consolidatedData.final_decision = 'revise';\n} else {\n  consolidatedData.final_decision = 'go';\n}\n\n// Generate recommended next steps based on analysis\nif (consolidatedData.final_decision === 'go') {\n  consolidatedData.recommended_next_steps.push(\n    'Proceed with strategy implementation',\n    'Establish cross-departmental coordination team',\n    'Set up monitoring and KPI tracking systems'\n  );\n} else if (consolidatedData.final_decision === 'revise') {\n  consolidatedData.recommended_next_steps.push(\n    'Address identified conflicts between departments',\n    'Revise strategy to incorporate departmental concerns',\n    'Schedule follow-up review meeting with key stakeholders'\n  );\n} else {\n  consolidatedData.recommended_next_steps.push(\n    'Document reasons for rejection',\n    'Explore alternative strategic approaches',\n    'Conduct additional market research if needed'\n  );\n}\n\n// Add specific next steps based on department feedback\nfor (const [dept, feedback] of Object.entries(consolidatedData.department_feedback)) {\n  if (feedback && feedback.concerns && feedback.concerns.length > 0) {\n    consolidatedData.recommended_next_steps.push(\n      `Address ${dept} concerns: ${feedback.concerns.slice(0, 2).join(', ')}`\n    );\n  }\n}\n\n// Deduplicate arrays\nconsolidatedData.synergies = [...new Set(consolidatedData.synergies)];\nconsolidatedData.warnings = [...new Set(consolidatedData.warnings)];\nconsolidatedData.recommended_next_steps = [...new Set(consolidatedData.recommended_next_steps)];\n\n// Return consolidated strategic plan\nreturn [{ json: consolidatedData }];"
+      },
+      "id": "b7a47f75-7add-40b0-9101-a68f09321645",
+      "name": "Consolidate & Analyze Feedback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "6f95e1cf-af7e-467f-b048-566a876dbd37",
+      "name": "OpenAI Model - CBS Final",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1584,
+        1136
+      ],
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"go_no_go\": {\n      \"type\": \"boolean\",\n      \"description\": \"Final GO/NO-GO decision\"\n    },\n    \"confidence_score\": {\n      \"type\": \"number\",\n      \"minimum\": 0,\n      \"maximum\": 1,\n      \"description\": \"Confidence level in the recommendation (0-1)\"\n    },\n    \"summary\": {\n      \"type\": \"string\",\n      \"description\": \"Executive summary of the final recommendation\"\n    },\n    \"conditions\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      },\n      \"description\": \"List of conditions or requirements for the recommendation\"\n    },\n    \"requires_ceo_override\": {\n      \"type\": \"boolean\",\n      \"description\": \"Whether this decision requires CEO override\"\n    }\n  },\n  \"required\": [\"go_no_go\", \"confidence_score\", \"summary\", \"conditions\", \"requires_ceo_override\"]\n}"
+      },
+      "id": "69bca62e-55ab-48ef-9426-1ed27e08fd1f",
+      "name": "CBS Final Decision Schema",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1712,
+        1136
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Original Intent: {{ $('Input Validation & Normalization').first().json.intent_summary }}\n\nInitial CBS Evaluation: {{ $('CBS Agent - Strategy Evaluation').first().json }}\n\nDepartment Feedback: {{ $json }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Chief Business Strategist (CBS) making the final strategic recommendation.\n\nYour task:\n1. Review the original strategic intent\n2. Consider your initial evaluation scores\n3. Analyze all department feedback (CFO, COO, CMO, CSO, AFA)\n4. Identify synergies and conflicts between departments\n5. Make a final GO/NO-GO decision\n6. Provide confidence score (0-1)\n7. Summarize the recommendation\n8. List any conditions that must be met\n9. Flag if CEO override is needed\n\nBe decisive but transparent about risks and dependencies. Your recommendation will guide the CEO."
+        }
+      },
+      "id": "a4f89a5a-e9da-4073-8eba-85c8cb84789e",
+      "name": "CBS Agent - Final Recommendation",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1568,
+        912
+      ],
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log Final Decision - Audit Trail\n// Logs comprehensive decision data to console for audit purposes\n// Emphasizes WF-1 authority boundaries: ADVISORY recommendation only\n\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  \n  console.log('=== CBS FINAL DECISION AUDIT LOG ===');\n  console.log('Timestamp:', new Date().toISOString());\n  console.log('Workflow:', 'WF-1: CBS Strategic Evaluation');\n  console.log('Authority Level:', 'ADVISORY ONLY - Execution authority belongs downstream');\n  console.log('Strategy ID:', data.strategy_id || 'N/A');\n  console.log('Request ID:', data.request_id || 'N/A');\n  \n  console.log('\\n--- STANDARDIZED OUTPUT FIELDS ---');\n  console.log('GO/NO-GO Decision:', data.go_no_go || 'N/A');\n  console.log('Confidence Score:', data.confidence_score || 'N/A');\n  console.log('Summary:', data.summary || 'N/A');\n  console.log('Conditions:', JSON.stringify(data.conditions || [], null, 2));\n  console.log('Warnings:', JSON.stringify(data.warnings || [], null, 2));\n  console.log('Requires CEO Override:', data.requires_ceo_override || 'N/A');\n  \n  console.log('\\n--- SCORES ---');\n  console.log('Strategic Alignment Score:', data.strategic_alignment_score || 'N/A');\n  console.log('Financial Viability Score:', data.financial_viability_score || 'N/A');\n  console.log('Operational Feasibility Score:', data.operational_feasibility_score || 'N/A');\n  console.log('Market Opportunity Score:', data.market_opportunity_score || 'N/A');\n  console.log('Risk Assessment Score:', data.risk_assessment_score || 'N/A');\n  console.log('Overall Score:', data.overall_score || 'N/A');\n  \n  console.log('\\n--- DEPARTMENT APPROVALS ---');\n  console.log('CFO Approval:', data.cfo_approval || 'N/A');\n  console.log('COO Approval:', data.coo_approval || 'N/A');\n  console.log('CMO Approval:', data.cmo_approval || 'N/A');\n  console.log('CSO Approval:', data.cso_approval || 'N/A');\n  console.log('AFA Approval:', data.afa_approval || 'N/A');\n  console.log('CREA Approval:', data.crea_approval || 'N/A');\n  \n  console.log('\\n--- FINAL DECISION ---');\n  console.log('Decision:', data.final_decision || 'N/A');\n  console.log('Recommendation:', data.recommendation || 'N/A');\n  console.log('Mode:', data.mode || 'N/A');\n  console.log('Risk Level:', data.risk_level || 'N/A');\n  \n  console.log('\\n--- AUTHORITY REMINDER ---');\n  console.log('⚠️  WF-1 provides ADVISORY recommendation only');\n  console.log('⚠️  Execution authority belongs to downstream workflows');\n  console.log('⚠️  This is NOT an execution approval');\n  console.log('===================================\\n');\n}\n\n// Return input data unchanged\nreturn items;"
+      },
+      "id": "71e0ecf4-2fbd-4022-9bdb-d176bada4d24",
+      "name": "Log Final Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "request_id",
+              "value": "={{ $('Workflow-0 Trigger').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "mode",
+              "value": "={{ $('Workflow-0 Trigger').item.json.mode }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "confidence",
+              "value": "={{ $('Workflow-0 Trigger').item.json.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "risk_level",
+              "value": "={{ $('Workflow-0 Trigger').item.json.risk_level }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "strategy_id",
+              "value": "={{ $('Input Validation & Normalization').first().json.strategy_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "intent_summary",
+              "value": "={{ $('Input Validation & Normalization').first().json.intent_summary }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b87a54cc-abe0-415e-82f3-77a1ef1ee264",
+      "name": "Prepare CFO Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "request_id",
+              "value": "={{ $('Workflow-0 Trigger').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "mode",
+              "value": "={{ $('Workflow-0 Trigger').item.json.mode }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "confidence",
+              "value": "={{ $('Workflow-0 Trigger').item.json.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "risk_level",
+              "value": "={{ $('Workflow-0 Trigger').item.json.risk_level }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "strategy_id",
+              "value": "={{ $('Input Validation & Normalization').first().json.strategy_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "intent_summary",
+              "value": "={{ $('Input Validation & Normalization').first().json.intent_summary }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c61a3104-1ca7-4e07-a361-cc9c626f5ab8",
+      "name": "Prepare COO Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "request_id",
+              "value": "={{ $('Workflow-0 Trigger').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "mode",
+              "value": "={{ $('Workflow-0 Trigger').item.json.mode }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "confidence",
+              "value": "={{ $('Workflow-0 Trigger').item.json.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "risk_level",
+              "value": "={{ $('Workflow-0 Trigger').item.json.risk_level }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "strategy_id",
+              "value": "={{ $('Input Validation & Normalization').first().json.strategy_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "intent_summary",
+              "value": "={{ $('Input Validation & Normalization').first().json.intent_summary }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5ecd1f5e-cf96-453f-b0c3-920d10b34b0b",
+      "name": "Prepare CMO Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "request_id",
+              "value": "={{ $('Workflow-0 Trigger').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "mode",
+              "value": "={{ $('Workflow-0 Trigger').item.json.mode }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "confidence",
+              "value": "={{ $('Workflow-0 Trigger').item.json.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "risk_level",
+              "value": "={{ $('Workflow-0 Trigger').item.json.risk_level }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "strategy_id",
+              "value": "={{ $('Input Validation & Normalization').first().json.strategy_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "intent_summary",
+              "value": "={{ $('Input Validation & Normalization').first().json.intent_summary }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "05a15b01-df99-49dc-87b5-8b101c87da4e",
+      "name": "Prepare CSO Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "request_id",
+              "value": "={{ $('Workflow-0 Trigger').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "mode",
+              "value": "={{ $('Workflow-0 Trigger').item.json.mode }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "confidence",
+              "value": "={{ $('Workflow-0 Trigger').item.json.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "risk_level",
+              "value": "={{ $('Workflow-0 Trigger').item.json.risk_level }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "strategy_id",
+              "value": "={{ $('Input Validation & Normalization').first().json.strategy_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "intent_summary",
+              "value": "={{ $('Input Validation & Normalization').first().json.intent_summary }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ffb39632-69ae-4dc1-9c07-c1104c110ddb",
+      "name": "Prepare AFA Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        1296
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Universal Contract Validation for WF-1: CBS Strategic Evaluation\n// Validates incoming Universal Workflow Contract from WF-0\n\nconst items = $input.all();\n\nif (items.length === 0) {\n  throw new Error(JSON.stringify({\n    status: 'rejected',\n    reason: 'No input data received from WF-0'\n  }));\n}\n\nconst inputData = items[0].json;\n\n// Define mandatory Universal Contract fields\nconst mandatoryFields = [\n  'request_id',\n  'mode',\n  'confidence',\n  'risk_level',\n  'payload',\n  'audit'\n];\n\n// Validate mandatory fields\nconst missingFields = mandatoryFields.filter(field => !inputData.hasOwnProperty(field));\n\nif (missingFields.length > 0) {\n  throw new Error(JSON.stringify({\n    status: 'rejected',\n    reason: `Invalid or incomplete universal contract. Missing fields: ${missingFields.join(', ')}`\n  }));\n}\n\n// Additional validation: ensure payload exists and has required structure\nif (!inputData.payload || typeof inputData.payload !== 'object') {\n  throw new Error(JSON.stringify({\n    status: 'rejected',\n    reason: 'Invalid or incomplete universal contract. Payload must be an object.'\n  }));\n}\n\n// Additional validation: ensure audit exists and has required structure\nif (!inputData.audit || typeof inputData.audit !== 'object') {\n  throw new Error(JSON.stringify({\n    status: 'rejected',\n    reason: 'Invalid or incomplete universal contract. Audit must be an object.'\n  }));\n}\n\n// Contract is valid - return validated input with all contract fields preserved\nconst validatedOutput = {\n  request_id: inputData.request_id,\n  mode: inputData.mode,\n  confidence: inputData.confidence,\n  risk_level: inputData.risk_level,\n  payload: inputData.payload,\n  audit: inputData.audit,\n  // Preserve any additional fields\n  ...inputData,\n  // Add validation metadata\n  contract_validated: true,\n  validated_at: new Date().toISOString(),\n  validated_by: 'WF-1: CBS Strategic Evaluation'\n};\n\nreturn [validatedOutput];"
+      },
+      "id": "a511206a-bebf-4378-9e40-03daf1c84985",
+      "name": "Universal Contract Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1248,
+        656
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Workflow-0 Trigger').item.json.confidence }}",
+              "rightValue": "0.9",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "57a3b439-bb27-46d6-95f5-f95bbb4e7eb9",
+      "name": "Strategic Confidence Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -224,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "workflow_id",
+              "value": "WF-1",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "request_id",
+              "value": "={{ $('Workflow-0 Trigger').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "status",
+              "value": "paused",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "decision",
+              "value": "NO-GO (Low Confidence)",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "decision_summary",
+              "value": "Confidence below 90% autonomy threshold - human approval required",
+              "type": "string"
+            },
+            {
+              "id": "id-14",
+              "name": "confidence",
+              "value": "={{ $('Workflow-0 Trigger').item.json.confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "id-15",
+              "name": "strategy_score",
+              "value": "={{ $('CBS Agent - Strategy Evaluation').item.json.scores.overall_score / 10 }}",
+              "type": "number"
+            },
+            {
+              "id": "id-7",
+              "name": "risk_level",
+              "value": "={{ $('Workflow-0 Trigger').item.json.risk_level }}",
+              "type": "string"
+            },
+            {
+              "id": "id-8",
+              "name": "human_approval_required",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-9",
+              "name": "crea_reviewed",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "id-10",
+              "name": "approvals",
+              "value": "[]",
+              "type": "array"
+            },
+            {
+              "id": "id-11",
+              "name": "next_allowed_actions",
+              "value": "[]",
+              "type": "array"
+            },
+            {
+              "id": "id-12",
+              "name": "logs",
+              "value": "[\"System confidence below 90% autonomy threshold\"]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e8c3c641-69ec-4668-9c5b-a798a205dab4",
+      "name": "Build Low Confidence Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log Low Confidence Block\n// Logs when a strategic decision is blocked due to low confidence score\n\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  \n  console.log('=== WF-1 LOW CONFIDENCE BLOCK ===');\n  console.log('Request ID:', data.request_id || 'N/A');\n  console.log('Confidence Level:', data.confidence_score || 'N/A');\n  console.log('Timestamp:', new Date().toISOString());\n  console.log('Message: Decision is paused pending human approval');\n  console.log('===================================\\n');\n}\n\n// Return input data unchanged\nreturn items;"
+      },
+      "id": "d5ee0a0c-bb77-41ca-970f-fa1f97980cf5",
+      "name": "Log Low Confidence Block",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Workflow-0 Trigger').item.json.mode }}",
+              "rightValue": "simulation",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2ac4f1e6-131b-4c02-a47d-0d4ec075fb57",
+      "name": "Mode Safety Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2144,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "1ea986d9-639c-41e9-8e3a-3d1014bcd7a4",
+      "name": "Build Standardized Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2592,
+        912
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Final Output Sanitization & Normalization\n// Creates a final sanitized output matching the required schema\n// Pulls data directly from upstream nodes to ensure accuracy\n\nconst items = $input.all();\nconst modifiedItems = [];\n\nfor (const item of items) {\n  // Get data from upstream nodes\n  const triggerData = $('Workflow-0 Trigger').item.json;\n  const cbsEvaluation = $('CBS Agent - Strategy Evaluation').item.json;\n  const cbsFinalRecommendation = $('CBS Agent - Final Recommendation').item.json;\n  \n  // Convert boolean go_no_go to string decision\n  const decision = cbsFinalRecommendation.go_no_go ? 'GO' : 'NO-GO';\n  \n  // Check if CREA reviewed (risk_level is 'high')\n  const creaReviewed = triggerData.risk_level === 'high';\n  \n  // Create sanitized output with data from upstream nodes\n  const sanitizedOutput = {\n    workflow_id: 'WF-1',\n    request_id: triggerData.request_id,\n    status: 'completed',\n    decision: decision,\n    decision_summary: cbsFinalRecommendation.summary,\n    confidence: triggerData.confidence,\n    strategy_score: cbsEvaluation.scores.overall_score / 10,\n    risk_level: triggerData.risk_level,\n    human_approval_required: cbsFinalRecommendation.requires_ceo_override,\n    crea_reviewed: creaReviewed,\n    approvals: cbsFinalRecommendation.conditions || [],\n    next_allowed_actions: [],\n    logs: [\n      {\n        timestamp: new Date().toISOString(),\n        message: 'Strategic evaluation completed',\n        level: 'info'\n      },\n      {\n        timestamp: new Date().toISOString(),\n        message: 'SIMULATION ONLY – NO EXECUTION AUTHORIZED',\n        level: 'warning'\n      }\n    ]\n  };\n  \n  console.log('=== FINAL OUTPUT SANITIZATION ===');\n  console.log('Request ID:', sanitizedOutput.request_id);\n  console.log('Decision:', sanitizedOutput.decision);\n  console.log('Confidence:', sanitizedOutput.confidence);\n  console.log('Strategy Score:', sanitizedOutput.strategy_score);\n  console.log('Risk Level:', sanitizedOutput.risk_level);\n  console.log('Human Approval Required:', sanitizedOutput.human_approval_required);\n  console.log('CREA Reviewed:', sanitizedOutput.crea_reviewed);\n  console.log('Warning: SIMULATION ONLY – NO EXECUTION AUTHORIZED');\n  console.log('Final Sanitized Output:', JSON.stringify(sanitizedOutput, null, 2));\n  console.log('=================================');\n  \n  modifiedItems.push({ json: sanitizedOutput });\n}\n\nreturn modifiedItems;"
+      },
+      "id": "efca1dad-5b18-41d8-903e-8e998f200ceb",
+      "name": "Add Simulation Warning",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        992
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Workflow-0 Trigger": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Validation & Normalization": {
+      "main": [
+        [
+          {
+            "node": "CBS Agent - Strategy Evaluation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model - CBS": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CBS Agent - Strategy Evaluation",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CBS Strategy Evaluation Schema": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "CBS Agent - Strategy Evaluation",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CBS Agent - Strategy Evaluation": {
+      "main": [
+        [
+          {
+            "node": "GO/NO-GO Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GO/NO-GO Gate": {
+      "main": [
+        [
+          {
+            "node": "Strategic Confidence Gate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build NO-GO Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build NO-GO Response": {
+      "main": [
+        [
+          {
+            "node": "Log NO-GO Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Risk Level": {
+      "main": [
+        [
+          {
+            "node": "CREA Escalation - WF-8",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare CFO Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare COO Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare CMO Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare CSO Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare AFA Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREA Escalation - WF-8": {
+      "main": [
+        [
+          {
+            "node": "CREA Approval Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREA Approval Check": {
+      "main": [
+        [
+          {
+            "node": "Prepare CFO Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare COO Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare CMO Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare CSO Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare AFA Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build CREA Rejection Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build CREA Rejection Response": {
+      "main": [
+        [
+          {
+            "node": "Log CREA Rejection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CFO Consultation - WF-2": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Department Responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "COO Consultation - WF-3": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Department Responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CMO Consultation - WF-5": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Department Responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSO Consultation - WF-6": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Department Responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AFA Consultation - WF-4": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Department Responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Department Responses": {
+      "main": [
+        [
+          {
+            "node": "Consolidate & Analyze Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidate & Analyze Feedback": {
+      "main": [
+        [
+          {
+            "node": "CBS Agent - Final Recommendation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model - CBS Final": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CBS Agent - Final Recommendation",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CBS Final Decision Schema": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "CBS Agent - Final Recommendation",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CBS Agent - Final Recommendation": {
+      "main": [
+        [
+          {
+            "node": "Log Final Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare CFO Payload": {
+      "main": [
+        [
+          {
+            "node": "CFO Consultation - WF-2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare COO Payload": {
+      "main": [
+        [
+          {
+            "node": "COO Consultation - WF-3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare CMO Payload": {
+      "main": [
+        [
+          {
+            "node": "CMO Consultation - WF-5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare CSO Payload": {
+      "main": [
+        [
+          {
+            "node": "CSO Consultation - WF-6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AFA Payload": {
+      "main": [
+        [
+          {
+            "node": "AFA Consultation - WF-4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Universal Contract Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Universal Contract Validation": {
+      "main": [
+        [
+          {
+            "node": "Input Validation & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Strategic Confidence Gate": {
+      "main": [
+        [
+          {
+            "node": "Check Risk Level",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Low Confidence Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Low Confidence Response": {
+      "main": [
+        [
+          {
+            "node": "Log Low Confidence Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Final Decision": {
+      "main": [
+        [
+          {
+            "node": "Mode Safety Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mode Safety Check": {
+      "main": [
+        [
+          {
+            "node": "Build Standardized Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add Simulation Warning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Simulation Warning": {
+      "main": [
+        [
+          {
+            "node": "Build Standardized Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Low Confidence Block": {
+      "main": [
+        [
+          {
+            "node": "CREA Escalation - WF-8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log NO-GO Decision": {
+      "main": [
+        [
+          {
+            "node": "CREA Escalation - WF-8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log CREA Rejection": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Department Responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "72902561-8ee2-4b54-b67f-bc64576050ce",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bea94a9541cdb25b8e9767cbab760254eae13c9cf6f5cc323581c4d6ea0dea6f"
+  },
+  "id": "crzJvTXgeYpSYXTI",
+  "tags": []
+}

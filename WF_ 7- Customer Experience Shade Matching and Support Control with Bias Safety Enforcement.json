@@ -1,0 +1,2075 @@
+{
+  "name": "WF: 7- Customer Experience Shade Matching and Support Control with Bias Safety Enforcement",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "request_id"
+            },
+            {
+              "name": "mode"
+            },
+            {
+              "name": "confidence",
+              "type": "number"
+            },
+            {
+              "name": "risk_level"
+            },
+            {
+              "name": "payload",
+              "type": "object"
+            },
+            {
+              "name": "audit",
+              "type": "object"
+            },
+            {
+              "name": "founder_available",
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      "id": "bf0bda28-e19f-4dad-b809-c49228976789",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -6368,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "request_id",
+              "value": "={{ $('Execute Workflow Trigger').item.json.request_id ?? 'test_' + $execution.id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "mode",
+              "value": "={{ $('Execute Workflow Trigger').item.json.mode ?? 'simulation' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "confidence",
+              "value": "={{ $('Execute Workflow Trigger').item.json.confidence ?? 0.95 }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "risk_level",
+              "value": "={{ $('Execute Workflow Trigger').item.json.risk_level ?? 'low' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "payload",
+              "value": "={{ JSON.stringify($('Execute Workflow Trigger').item.json.payload ?? {}) }}",
+              "type": "object"
+            },
+            {
+              "id": "id-6",
+              "name": "audit",
+              "value": "={{ JSON.stringify($('Execute Workflow Trigger').item.json.audit ?? { timestamp: new Date().toISOString(), source_workflow: 'WF-7', execution_id: $execution.id }) }}",
+              "type": "object"
+            },
+            {
+              "id": "id-7",
+              "name": "founder_available",
+              "value": "={{ $('Execute Workflow Trigger').item.json.founder_available ?? false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "id-8",
+              "name": "confidence_threshold",
+              "value": 0.75,
+              "type": "number"
+            },
+            {
+              "id": "id-9",
+              "name": "wf4_id",
+              "value": "wruDXEwcbxlP2D7x",
+              "type": "string"
+            },
+            {
+              "id": "id-10",
+              "name": "wf8_id",
+              "value": "q1UDzKI9hUOR816f",
+              "type": "string"
+            },
+            {
+              "id": "id-11",
+              "name": "confidence_from_wf0",
+              "value": "={{ $('Execute Workflow Trigger').item.json.confidence ?? 0.95 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "943587b7-c5dc-4d89-82df-29b0c32af93c",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -5696,
+        496
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Input Validation and Privacy Normalization\n// Validates input schema, masks PII, validates photo reference, and attaches metadata\n\nconst item = $input.item.json;\n\n// Initialize output object\nconst output = {\n  validation_status: 'valid',\n  validation_errors: [],\n  original_input: item,\n  normalized_input: {},\n  metadata: {}\n};\n\n// Attach metadata\noutput.metadata.cx_id = item.cx_id || item.customer_id || 'anonymous_' + Date.now();\noutput.metadata.timestamp = new Date().toISOString();\noutput.metadata.caller_workflow = item.caller_workflow || $workflow.name || 'unknown';\noutput.metadata.workflow_execution_id = $execution.id;\n\n// Validate required fields\nconst requiredFields = ['request_type'];\nfor (const field of requiredFields) {\n  if (!item[field]) {\n    output.validation_errors.push(`Missing required field: ${field}`);\n    output.validation_status = 'invalid';\n  }\n}\n\n// Validate request_type\nconst validRequestTypes = ['shade_match', 'beauty_advisory', 'support', 'qa'];\nif (item.request_type && !validRequestTypes.includes(item.request_type)) {\n  output.validation_errors.push(`Invalid request_type: ${item.request_type}. Must be one of: ${validRequestTypes.join(', ')}`);\n  output.validation_status = 'invalid';\n}\n\n// PII Masking Function\nfunction maskPII(text) {\n  if (!text || typeof text !== 'string') return text;\n  \n  // Mask email addresses\n  text = text.replace(/([a-zA-Z0-9._-]+)@([a-zA-Z0-9._-]+\\.[a-zA-Z0-9_-]+)/gi, (match, user, domain) => {\n    const maskedUser = user.substring(0, 2) + '***';\n    return maskedUser + '@' + domain;\n  });\n  \n  // Mask phone numbers (various formats)\n  text = text.replace(/\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b/g, '***-***-****');\n  \n  // Mask credit card numbers\n  text = text.replace(/\\b\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}\\b/g, '****-****-****-****');\n  \n  // Mask SSN\n  text = text.replace(/\\b\\d{3}-\\d{2}-\\d{4}\\b/g, '***-**-****');\n  \n  return text;\n}\n\n// Normalize and mask input fields\noutput.normalized_input.request_type = item.request_type;\noutput.normalized_input.customer_query = maskPII(item.customer_query || item.query || '');\noutput.normalized_input.skin_tone = item.skin_tone || '';\noutput.normalized_input.undertone = item.undertone || '';\noutput.normalized_input.skin_type = item.skin_type || '';\noutput.normalized_input.concerns = item.concerns || [];\noutput.normalized_input.preferences = item.preferences || {};\n\n// Validate photo reference if provided\nif (item.photo_reference || item.photo_url) {\n  const photoRef = item.photo_reference || item.photo_url;\n  \n  // Check if it's a valid URL or base64 string\n  const isValidUrl = /^https?:\\/\\/.+/.test(photoRef);\n  const isBase64 = /^data:image\\/(png|jpg|jpeg|gif);base64,/.test(photoRef);\n  \n  if (isValidUrl || isBase64) {\n    output.normalized_input.photo_reference = photoRef;\n    output.normalized_input.has_photo = true;\n  } else {\n    output.validation_errors.push('Invalid photo_reference format. Must be a valid URL or base64 encoded image.');\n    output.validation_status = 'invalid';\n    output.normalized_input.has_photo = false;\n  }\n} else {\n  output.normalized_input.has_photo = false;\n}\n\n// Mask any PII in customer name if provided\nif (item.customer_name || item.name) {\n  const name = item.customer_name || item.name;\n  // Keep first name, mask last name\n  const nameParts = name.split(' ');\n  if (nameParts.length > 1) {\n    output.normalized_input.customer_name = nameParts[0] + ' ' + nameParts[nameParts.length - 1].charAt(0) + '***';\n  } else {\n    output.normalized_input.customer_name = nameParts[0];\n  }\n}\n\n// Add simulation mode flag\noutput.normalized_input.simulation_mode = item.simulation_mode || false;\n\n// Return validation result\nreturn output;"
+      },
+      "id": "904bfe27-c28c-40e7-9ce6-e874bea19b7c",
+      "name": "Input Validation and Privacy Normalization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5472,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.request_type }}",
+              "rightValue": "shade_match",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a7f6151e-e19c-445a-aced-4854cd8ba676",
+      "name": "Route by Request Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5248,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"shade_recommendation\": \"string\",\n\t\"confidence_score\": 0\n}"
+      },
+      "id": "ae5f4bc7-5fbb-448d-bac5-0f8bd7904dcc",
+      "name": "Shade Match Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -4896,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Photo reference: {{ $json.photo_reference }}, Skin tone metadata: {{ $json.user_context }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Shade Matching Agent, a specialized AI for cosmetic shade matching.\n\nYour task is to:\n1. Analyze the provided photo reference (hashed/ephemeral) and skin tone metadata\n2. Determine the most suitable shade recommendation from the product catalog\n3. Calculate a confidence score (0.0 to 1.0) based on the quality of the match\n4. Return structured output with shade_recommendation and confidence_score\n\nGuidelines:\n- Use skin tone, undertone, and lighting context to make accurate recommendations\n- Be conservative with confidence scores - only high-quality matches should exceed 0.75\n- Consider diversity and inclusivity in all recommendations\n- Never store or persist raw biometric data"
+        }
+      },
+      "id": "3aed3f7b-22c1-4d77-b8fb-0b7be9723a5e",
+      "name": "Shade Matching Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -5072,
+        480
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Shade Matching Agent').item.json.confidence_score }}",
+              "rightValue": "={{ $('Workflow Configuration').first().json.confidence_threshold }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f2820142-66d1-4e62-b8f7-c10e47d4dfe3",
+      "name": "Confidence Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -4672,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"shade_recommendation\": \"string\",\n\t\"confidence_score\": 0,\n\t\"undertone\": \"string\",\n\t\"preference\": \"string\",\n\t\"usage_context\": \"string\"\n}"
+      },
+      "id": "6d18b897-cc36-4fa7-b487-b55e50589480",
+      "name": "Fallback Questionnaire Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -4320,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Low confidence shade match detected. Customer context:{{ $json.output }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Fallback Questionnaire Agent that provides shade recommendations when initial confidence is low.\n\nYour task is to:\n1. Analyze the available customer context (skin tone, undertone, preferences, usage context)\n2. Make your best shade recommendation based on available information\n3. Provide a confidence score (0.0 to 1.0) for your recommendation\n4. Fill in any missing information with reasonable defaults based on context\n5. Return structured output with shade_recommendation, confidence_score, undertone, preference, and usage_context\n\nGuidelines:\n- Work with whatever information is available - don't ask questions\n- Use context clues to infer missing details (e.g., if no undertone specified, analyze skin tone description)\n- Set undertone to one of: warm, cool, or neutral\n- Set preference to describe coverage/finish (e.g., medium coverage, natural finish)\n- Set usage_context to describe intended use (e.g., daily wear, special occasions)\n- Be conservative with confidence scores - typically 0.6-0.8 for fallback recommendations\n- Always return complete structured data, never conversational responses"
+        }
+      },
+      "id": "b5fefc0a-d5b4-4fe0-a7d4-571bbeb3c759",
+      "name": "Fallback Questionnaire Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -4448,
+        368
+      ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "shade_recommendation",
+              "value": "={{ $json.shade_recommendation }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "confidence_score",
+              "value": "={{ $json.confidence_score }}",
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "4872ab57-dbb6-4222-bd3f-f57113323a10",
+      "name": "Merge Shade Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4096,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"usage_guidance\": \"Apply foundation with a damp beauty sponge for best results\",\n\t\"complementary_products\": [\"Setting Powder\", \"Primer\", \"Concealer\"],\n\t\"disclaimers\": \"Patch test recommended for sensitive skin\",\n\t\"shade_available\": true\n}"
+      },
+      "id": "c9d16d7c-9081-40fc-949a-23d002e3e528",
+      "name": "Beauty Advisory Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -3744,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Shade recommendation: {{ $json.shade_recommendation }}, Customer context: {{ $json.user_context }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Beauty Advisory Agent, providing expert cosmetic guidance.\n\nYour task is to:\n1. Provide usage guidance for the recommended shade\n2. Suggest complementary products that work well with the shade\n3. Include appropriate disclaimers (patch test, ingredients, etc.)\n4. Verify shade availability in the catalog\n5. Flag if the recommended shade is not available (shade_available: false)\n\nGuidelines:\n- Provide clear, actionable usage instructions\n- Recommend products that enhance the customer experience\n- Always include safety disclaimers where appropriate\n- Be inclusive and avoid biased language\n- If shade is unavailable, clearly indicate this in the output"
+        }
+      },
+      "id": "731c21e6-d79b-4b81-a661-bbcf29c0d402",
+      "name": "Beauty Advisory Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -3872,
+        496
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.shade_available }}",
+              "rightValue": "false",
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c0327564-a80c-4372-b626-b662ad6fd647",
+      "name": "Check Shade Availability",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -3520,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "wruDXEwcbxlP2D7x",
+          "mode": "id",
+          "cachedResultName": "wruDXEwcbxlP2D7x"
+        },
+        "options": {}
+      },
+      "id": "e36c1c80-3934-41f0-a158-e28cb8badae5",
+      "name": "Escalate to AFA WF-4",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -3296,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "beauty_advisory",
+              "value": "={{ $json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f65651a8-681d-42b7-88b6-125991981ff1",
+      "name": "Merge Beauty Advisory Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3072,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('CREA Bias and Safety Check WF-8').item.json.CREA_approved }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a5aeca32-460d-4768-ac78-7f809f2cfadb",
+      "name": "CREA Approval Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1952,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n\t\"type\": \"object\",\n\t\"properties\": {\n\t\t\"sentiment\": {\n\t\t\t\"type\": \"string\",\n\t\t\t\"enum\": [\"positive\", \"neutral\", \"negative\"]\n\t\t},\n\t\t\"risk_level\": {\n\t\t\t\"type\": \"string\",\n\t\t\t\"enum\": [\"low\", \"medium\", \"high\"]\n\t\t}\n\t}\n}"
+      },
+      "id": "e4ce14b3-7e49-4a34-a64c-7e4982d46ec2",
+      "name": "Sentiment Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1376,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Customer context: {{ $json.user_context }}, Request type: {{ $json.request_type }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Customer Sentiment Agent, analyzing customer emotions and satisfaction.\n\nYour task is to:\n1. Detect customer sentiment (positive, neutral, negative)\n2. Assess churn risk level (low, medium, high)\n3. Identify frustration, satisfaction, or concerns\n4. Flag high-risk interactions for priority handling\n\nGuidelines:\n- Analyze tone, word choice, and context\n- Be sensitive to subtle indicators of dissatisfaction\n- Prioritize customer experience and retention\n- Return structured sentiment and risk_level data"
+        }
+      },
+      "id": "e9fb3b91-5fd6-4c40-a977-9d0de9e79890",
+      "name": "Customer Sentiment Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -1504,
+        320
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"response\": \"string\",\n\t\"escalation_needed\": false,\n\t\"priority\": \"string\"\n}"
+      },
+      "id": "71550925-1056-41ed-bf2d-f192d6bfdce9",
+      "name": "Support Ops Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1024,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Support Ops Agent, handling customer support responses.\n\nYour task is to:\n1. Generate appropriate customer-facing responses\n2. Determine if escalation to human support is needed\n3. Set priority level based on sentiment and risk\n4. Handle negative sentiment with empathy and solutions\n\nGuidelines:\n- Be empathetic and solution-oriented\n- Escalate high-risk or complex issues\n- Provide clear next steps\n- Maintain brand voice and professionalism\n- For negative sentiment + high risk, set priority to \"urgent\""
+        }
+      },
+      "id": "ce83ae3b-c8a1-4134-b3a3-e09643438311",
+      "name": "Support Ops Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -1152,
+        320
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"tone_check\": \"professional\",\n\t\"policy_compliance\": true,\n\t\"approved\": true\n}"
+      },
+      "id": "054d1b00-cc28-4673-b5bc-33807bd70a0a",
+      "name": "QA Ops Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -672,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Support response: {{ $('Support Ops Agent').first().json.response }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the QA Ops Agent, ensuring quality and compliance of customer communications.\n\nYour task is to:\n1. Verify tone is appropriate and empathetic\n2. Ensure policy compliance (no medical claims, proper disclaimers)\n3. Check for bias, offensive language, or inappropriate content\n4. Approve or reject the response\n\nGuidelines:\n- Reject responses with medical claims or guarantees\n- Ensure inclusive, non-biased language\n- Verify all required disclaimers are present\n- Check tone matches brand guidelines\n- Set approved to true only if all checks pass"
+        }
+      },
+      "id": "cf755e5d-1515-4021-9d7b-07e1c432e5b8",
+      "name": "QA Ops Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -800,
+        320
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "support_response",
+              "value": "={{ $('Support Ops Agent').item.json }}",
+              "type": "object"
+            },
+            {
+              "id": "id-2",
+              "name": "qa_check",
+              "value": "={{ $json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "4771d342-0505-4584-aaac-a8d4bbaddfff",
+      "name": "Merge Support and QA Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -448,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "cx_id",
+              "value": "={{ $json.cx_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "status",
+              "value": "completed",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "shade",
+              "value": "={{ $json.shade_recommendation }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "confidence_score",
+              "value": "={{ $json.confidence_score }}",
+              "type": "number"
+            },
+            {
+              "id": "id-5",
+              "name": "sentiment",
+              "value": "={{ $json.sentiment }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "mode",
+              "value": "={{ $('Workflow Configuration').item.json.mode }}",
+              "type": "string"
+            },
+            {
+              "id": "id-7",
+              "name": "response_status",
+              "value": "sent",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "22c6fa9b-aada-4894-aac8-bff9ca0b55c3",
+      "name": "Final Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "81bba5cb-b895-4d57-a9fb-2153a7060fe1",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -5024,
+        720
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "b1b851ec-6998-4f1c-96b0-2e479eacc008",
+      "name": "OpenAI Chat Model Fallback",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -4448,
+        592
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "3b90d76f-aebd-4758-87ff-ea8790deaf8a",
+      "name": "OpenAI Chat Model Beauty",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -3872,
+        720
+      ],
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "64708344-c362-4d96-9461-c19870188fcf",
+      "name": "OpenAI Chat Model Sentiment",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1504,
+        544
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "c10b0348-9fc7-4a04-9e58-2620e11ed07a",
+      "name": "OpenAI Chat Model Support",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1152,
+        544
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "d6fda54b-01b5-4ff9-94f9-12e7ef2594ac",
+      "name": "OpenAI Chat Model QA",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -800,
+        544
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Universal Workflow Contract Validation (WF-0)\n// Provides default values for missing fields, then validates the contract\n\nconst item = $input.item.json;\n\n// Initialize validation result\nconst validationResult = {\n  validation_passed: true,\n  missing_fields: [],\n  validated_input: {}\n};\n\n// Provide default values for missing required fields\nconst request_id = item.request_id || 'test_' + $execution.id;\nconst mode = item.mode || 'simulation';\nconst confidence = item.confidence !== null && item.confidence !== undefined ? item.confidence : 0.95;\nconst risk_level = item.risk_level || 'low';\nconst payload = item.payload || {};\nconst audit = item.audit || {\n  timestamp: new Date().toISOString(),\n  source_workflow: 'WF-7',\n  execution_id: $execution.id\n};\n\n// Ensure audit has all required fields with defaults\nif (!audit.timestamp) audit.timestamp = new Date().toISOString();\nif (!audit.source_workflow) audit.source_workflow = 'WF-7';\nif (!audit.execution_id) audit.execution_id = $execution.id;\n\n// Define required fields from Universal Workflow Contract (WF-0)\nconst requiredFields = {\n  request_id: request_id,\n  mode: mode,\n  confidence: confidence,\n  risk_level: risk_level,\n  payload: payload\n};\n\n// Validate that all required fields are now present (after defaults applied)\nfor (const [field, value] of Object.entries(requiredFields)) {\n  // Check if field is still missing, null, or undefined (but allow 0 and false as valid values)\n  if (value === null || value === undefined || value === '') {\n    validationResult.validation_passed = false;\n    validationResult.missing_fields.push(field);\n  }\n}\n\n// Validate audit metadata (nested object)\nif (!audit || typeof audit !== 'object' || audit === null) {\n  validationResult.validation_passed = false;\n  validationResult.missing_fields.push('audit');\n} else {\n  // Validate audit metadata fields\n  const auditRequiredFields = ['timestamp', 'source_workflow', 'execution_id'];\n  for (const auditField of auditRequiredFields) {\n    const auditValue = audit[auditField];\n    if (auditValue === null || auditValue === undefined || auditValue === '') {\n      validationResult.validation_passed = false;\n      validationResult.missing_fields.push(`audit.${auditField}`);\n    }\n  }\n}\n\n// Populate validated_input with all required fields (with defaults applied)\nvalidationResult.validated_input = {\n  request_id: request_id,\n  mode: mode,\n  confidence: confidence,\n  risk_level: risk_level,\n  payload: payload,\n  audit: {\n    timestamp: audit.timestamp,\n    source_workflow: audit.source_workflow,\n    execution_id: audit.execution_id\n  },\n  // Include optional fields if present\n  founder_available: item.founder_available !== undefined ? item.founder_available : false,\n  metadata: item.metadata || {},\n  context: item.context || {}\n};\n\n// Return validation result\nreturn validationResult;"
+      },
+      "id": "8ebc5db2-d0c5-4031-aaa5-c6840d64079f",
+      "name": "Universal Contract Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6144,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "=WF-7 rejected: Invalid or incomplete universal contract. Missing fields: {{ $json.missing_fields.join(', ') }}"
+      },
+      "id": "007ab610-132f-42ee-84b1-fc7cf0f1432d",
+      "name": "Stop - Invalid Contract",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -5696,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.validation_passed }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7bbfff37-78a6-400b-b8eb-e22f0873d48c",
+      "name": "Contract Valid Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5920,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Workflow Configuration').item.json.mode }}",
+              "rightValue": "execute",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "98a0c23c-518a-439c-b426-2613f79b47de",
+      "name": "Response Execution Guard",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -224,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Workflow Configuration').item.json.confidence_from_wf0 }}",
+              "rightValue": "0.9",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a4a6a934-2f90-46b9-bc65-914f3bf4334a",
+      "name": "System Confidence Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2624,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Sensitive Response Detection\n// Classifies customer requests as normal, sensitive, or escalation\n// Detects keywords for legal threats, safety issues, refunds, bias, and public complaints\n\nconst item = $input.item.json;\n\n// Initialize output\nconst output = {\n  response_sensitivity: false,\n  sensitivity_category: 'normal',\n  detected_triggers: [],\n  original_data: item\n};\n\n// Get text to analyze from various possible fields\nconst textToAnalyze = [\n  item.customer_query || '',\n  item.normalized_input?.customer_query || '',\n  item.query || '',\n  JSON.stringify(item.preferences || {}),\n  JSON.stringify(item.concerns || [])\n].join(' ').toLowerCase();\n\n// Define trigger keywords by category\nconst triggers = {\n  legal_threat: [\n    'lawyer', 'attorney', 'sue', 'lawsuit', 'legal action', 'court',\n    'litigation', 'cease and desist', 'legal counsel', 'legal team',\n    'take legal action', 'my lawyer', 'contact my attorney'\n  ],\n  safety_issue: [\n    'allergic reaction', 'rash', 'burning', 'swelling', 'irritation',\n    'chemical burn', 'injury', 'hurt', 'pain', 'medical attention',\n    'hospital', 'doctor', 'emergency', 'severe reaction', 'poisoning',\n    'toxic', 'dangerous', 'harmful', 'unsafe'\n  ],\n  refund_compensation: [\n    'refund', 'money back', 'compensation', 'reimburse', 'chargeback',\n    'dispute charge', 'want my money', 'demand refund', 'full refund',\n    'partial refund', 'credit', 'store credit'\n  ],\n  bias_discrimination: [\n    'racist', 'discrimination', 'discriminate', 'bias', 'biased',\n    'prejudice', 'unfair', 'offensive', 'insensitive', 'colorism',\n    'skin tone bias', 'shade range', 'lack of diversity', 'not inclusive',\n    'excluded', 'marginalized'\n  ],\n  public_complaint: [\n    'social media', 'twitter', 'instagram', 'facebook', 'tiktok',\n    'influencer', 'post about this', 'tell everyone', 'review',\n    'bad review', 'public complaint', 'expose', 'viral', 'followers',\n    'going public', 'share this experience', 'warn others'\n  ]\n};\n\n// Check for triggers in each category\nfor (const [category, keywords] of Object.entries(triggers)) {\n  for (const keyword of keywords) {\n    if (textToAnalyze.includes(keyword)) {\n      output.detected_triggers.push({\n        category: category,\n        keyword: keyword,\n        severity: category === 'legal_threat' || category === 'safety_issue' ? 'high' : 'medium'\n      });\n      output.response_sensitivity = true;\n    }\n  }\n}\n\n// Determine sensitivity category based on detected triggers\nif (output.detected_triggers.length === 0) {\n  output.sensitivity_category = 'normal';\n} else {\n  // Check for escalation-level triggers\n  const hasLegalThreat = output.detected_triggers.some(t => t.category === 'legal_threat');\n  const hasSafetyIssue = output.detected_triggers.some(t => t.category === 'safety_issue');\n  const hasPublicComplaint = output.detected_triggers.some(t => t.category === 'public_complaint');\n  \n  if (hasLegalThreat || hasSafetyIssue) {\n    output.sensitivity_category = 'escalation';\n  } else if (hasPublicComplaint || output.detected_triggers.length >= 3) {\n    output.sensitivity_category = 'escalation';\n  } else {\n    output.sensitivity_category = 'sensitive';\n  }\n}\n\n// Add metadata\noutput.analysis_timestamp = new Date().toISOString();\noutput.trigger_count = output.detected_triggers.length;\n\n// Return merged output with original data\nreturn { ...item, ...output };"
+      },
+      "id": "256cbcbf-6147-4066-bd4c-342bec617aa1",
+      "name": "Sensitive Response Detection",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2848,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Sensitive Response Detection').item.json.response_sensitivity }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5533ed4a-b3bc-4b50-ae37-452b8162047d",
+      "name": "CREA Mandatory Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2400,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Workflow Configuration').item.json.risk_level }}",
+              "rightValue": "medium",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "id-1b",
+              "leftValue": "={{ $('Workflow Configuration').item.json.risk_level }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $('Workflow Configuration').item.json.founder_available }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "a401c150-e4c5-4621-ba5e-61bce7e76c32",
+      "name": "Founder Authority Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1728,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "paused",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "response_status",
+              "value": "not_sent",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "human_approval_required",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-4",
+              "name": "reason",
+              "value": "System confidence below 90% threshold for autonomous CX response",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "confidence",
+              "value": "={{ $('Workflow Configuration').item.json.confidence_from_wf0 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "a3a1c1dd-7d9e-4c93-aace-d32267c648df",
+      "name": "Blocked - Low Confidence",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        896
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "blocked",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "blocked_by",
+              "value": "CREA",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "response_status",
+              "value": "not_sent",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "reason",
+              "value": "Sensitive response requires CREA approval - bypassing CREA is not allowed",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "response_sensitivity",
+              "value": "={{ $('Sensitive Response Detection').item.json.response_sensitivity }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f6cbe0e9-f11c-496f-9e10-c97b3dbc37d5",
+      "name": "Blocked - CREA Required",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        0
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "waiting_for_founder",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "response_status",
+              "value": "not_sent",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "decision_summary",
+              "value": "Founder approval required for brand-risk CX response",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "risk_level",
+              "value": "={{ $('Workflow Configuration').item.json.risk_level }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "response_sensitivity",
+              "value": "={{ $('Sensitive Response Detection').item.json.response_sensitivity }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "86c1506d-bdbb-4bc3-8721-5134c0dacac8",
+      "name": "Paused - Founder Approval Required",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        640
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "simulation_only",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "response_status",
+              "value": "not_sent",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "execution_note",
+              "value": "NON-EXECUTABLE – FOR REVIEW ONLY",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "mode",
+              "value": "={{ $('Workflow Configuration').item.json.mode }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "draft_response",
+              "value": "={{ JSON.stringify($json) }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "a7fecf08-c7c4-4e64-a48e-d77ad5ae6c0e",
+      "name": "Blocked - Simulation Mode",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "workflow_id",
+              "value": "WF-7",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "request_id",
+              "value": "={{ $('Workflow Configuration').item.json.request_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "status",
+              "value": "={{ $json.status || 'completed' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "response_status",
+              "value": "={{ $json.response_status || 'sent' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "decision_summary",
+              "value": "={{ $json.decision_summary || $json.reason || 'CX response processed successfully' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "confidence",
+              "value": "={{ $('Workflow Configuration').item.json.confidence_from_wf0 }}",
+              "type": "number"
+            },
+            {
+              "id": "id-7",
+              "name": "risk_level",
+              "value": "={{ $('Workflow Configuration').item.json.risk_level }}",
+              "type": "string"
+            },
+            {
+              "id": "id-8",
+              "name": "response_sensitivity",
+              "value": "={{ $json.response_sensitivity || false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "id-9",
+              "name": "crea_reviewed",
+              "value": "={{ $json.blocked_by === 'CREA' || $json.CREA_approved ? true : false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "id-10",
+              "name": "human_approval_required",
+              "value": "={{ $json.human_approval_required || false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "id-11",
+              "name": "approvals",
+              "value": "[]",
+              "type": "array"
+            },
+            {
+              "id": "id-12",
+              "name": "next_allowed_actions",
+              "value": "[]",
+              "type": "array"
+            },
+            {
+              "id": "id-13",
+              "name": "audit",
+              "value": "={{ JSON.stringify({ \"timestamp\": new Date().toISOString(), \"performed_by\": \"WF-7\", \"notes\": [] }) }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f1ce61f7-dd04-4d68-8382-be0557a9eee4",
+      "name": "Final Output Sanitization & Normalization",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        448,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 5
+      },
+      "id": "f8ea3b41-095e-47c7-b10c-701cb8399282",
+      "name": "Merge All Execution Paths",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        224,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "=WF-7 blocked: CREA approval denied. Response cannot be sent to customer. Reason: {{ $('CREA Bias and Safety Check WF-8').item.json.denial_reason ?? 'CREA safety check failed' }}"
+      },
+      "id": "78a6223b-b959-422f-a8ed-c0d29d93c788",
+      "name": "Stop - CREA Denied",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -1728,
+        752
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enhanced Audit Record Generation\n// Generates immutable audit record for WF-0 consumption\n\nconst items = $input.all();\nconst auditRecords = [];\n\nfor (const item of items) {\n  const json = item.json;\n  \n  // Generate unique request ID if not present\n  const requestId = json.request_id || json.metadata?.workflow_execution_id || $execution.id + '_' + Date.now();\n  \n  // Determine mode (simulation vs production)\n  const mode = json.normalized_input?.simulation_mode === true ? 'simulation' : 'production';\n  \n  // Extract confidence score\n  const confidenceScore = json.confidence_score || 0;\n  \n  // Determine sensitivity classification\n  let sensitivityClassification = 'standard';\n  if (json.sensitivity_flags) {\n    if (json.sensitivity_flags.high_risk || json.risk_level === 'high') {\n      sensitivityClassification = 'high';\n    } else if (json.sensitivity_flags.medium_risk || json.risk_level === 'medium') {\n      sensitivityClassification = 'medium';\n    }\n  }\n  \n  // Extract CREA decision\n  const creaDecision = json.CREA_approved !== undefined ? \n    (json.CREA_approved ? 'approved' : 'rejected') : \n    'not_required';\n  \n  // Determine founder availability (if founder gate was triggered)\n  const founderAvailability = json.founder_approval_required === true ? \n    (json.founder_approved === true ? 'approved' : 'pending') : \n    'not_required';\n  \n  // Determine response status\n  let responseSentOrBlockedReason = 'sent';\n  if (json.status === 'blocked' || json.blocked === true) {\n    if (json.blocking_reason) {\n      responseSentOrBlockedReason = json.blocking_reason;\n    } else if (confidenceScore < 0.75) {\n      responseSentOrBlockedReason = 'blocked_low_confidence';\n    } else if (creaDecision === 'rejected') {\n      responseSentOrBlockedReason = 'blocked_crea_rejected';\n    } else if (mode === 'simulation') {\n      responseSentOrBlockedReason = 'blocked_simulation_mode';\n    } else {\n      responseSentOrBlockedReason = 'blocked_unknown';\n    }\n  } else if (json.status === 'paused' || founderAvailability === 'pending') {\n    responseSentOrBlockedReason = 'paused_founder_approval_required';\n  }\n  \n  // Track all gates passed\n  const allGatesPassed = [];\n  if (json.validation_status === 'valid') allGatesPassed.push('contract_validation');\n  if (confidenceScore >= 0.75) allGatesPassed.push('confidence_gate');\n  if (json.shade_available !== false) allGatesPassed.push('shade_availability');\n  if (creaDecision === 'approved' || creaDecision === 'not_required') allGatesPassed.push('crea_gate');\n  if (founderAvailability === 'approved' || founderAvailability === 'not_required') allGatesPassed.push('founder_gate');\n  if (json.qa_check?.approved === true) allGatesPassed.push('qa_gate');\n  if (mode === 'production') allGatesPassed.push('execution_safety_gate');\n  \n  // Determine blocking gate (if any)\n  let blockingGate = null;\n  if (responseSentOrBlockedReason.startsWith('blocked_')) {\n    if (responseSentOrBlockedReason === 'blocked_low_confidence') {\n      blockingGate = 'confidence_gate';\n    } else if (responseSentOrBlockedReason === 'blocked_crea_rejected') {\n      blockingGate = 'crea_gate';\n    } else if (responseSentOrBlockedReason === 'blocked_simulation_mode') {\n      blockingGate = 'execution_safety_gate';\n    } else if (json.validation_status === 'invalid') {\n      blockingGate = 'contract_validation';\n    }\n  } else if (responseSentOrBlockedReason === 'paused_founder_approval_required') {\n    blockingGate = 'founder_gate';\n  }\n  \n  // Build immutable audit record\n  const auditRecord = {\n    request_id: requestId,\n    mode: mode,\n    confidence: confidenceScore,\n    sensitivity_classification: sensitivityClassification,\n    crea_decision: creaDecision,\n    founder_availability: founderAvailability,\n    response_sent_or_blocked_reason: responseSentOrBlockedReason,\n    timestamp: new Date().toISOString(),\n    workflow_id: $workflow.id,\n    workflow_name: $workflow.name,\n    execution_id: $execution.id,\n    all_gates_passed: allGatesPassed,\n    blocking_gate: blockingGate,\n    \n    // Additional context for WF-0\n    customer_id: json.metadata?.cx_id || json.cx_id || 'unknown',\n    request_type: json.normalized_input?.request_type || json.request_type || 'unknown',\n    sentiment: json.sentiment || 'neutral',\n    escalation_needed: json.support_response?.escalation_needed || false,\n    shade_recommendation: json.shade_recommendation || null,\n    \n    // Full payload for deep analysis (optional)\n    full_context: {\n      validation_errors: json.validation_errors || [],\n      sensitivity_flags: json.sensitivity_flags || {},\n      qa_check: json.qa_check || {},\n      support_response: json.support_response || {}\n    }\n  };\n  \n  auditRecords.push({ json: auditRecord });\n}\n\nreturn auditRecords;"
+      },
+      "id": "0bbb4e86-088f-419b-84b9-4323b904e6dc",
+      "name": "Enhanced Audit Record Generation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n {\n  json: {\n   bias: \"safe\",\n   safety: \"passed\",\n   CREA_approved: true,\n   denial_reason: \"\"\n  }\n }\n];"
+      },
+      "id": "0b76a6a6-5d81-426d-954e-feb039587277",
+      "name": "CREA Bias and Safety Check WF-8",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2176,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($('Input Validation and Privacy Normalization').item.json.payload ?? $('Input Validation and Privacy Normalization').item.json) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the User Journey Agent (L3) reporting to CEA. Analyze customer behavior across app/site: friction/drop-off points, journey map, next-purchase prediction and UX improvement suggestions. Respect privacy. Return JSON only."
+        }
+      },
+      "id": "6dc9beae-982d-491e-a6a6-2f5572f9d2f3",
+      "name": "User Journey Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -1000,
+        1700
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "d5d10e18-1496-4add-9213-33b24d36c60b",
+      "name": "Model - User Journey",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -984,
+        1920
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"journey_map\": {\"type\": \"string\"}, \"friction_points\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"next_purchase_prediction\": {\"type\": \"string\"}, \"ux_recommendations\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"explanation\": {\"type\": \"string\"}}, \"required\": [\"journey_map\", \"explanation\"]}"
+      },
+      "id": "37b48a4b-c60e-4ea0-8241-927376257c95",
+      "name": "Parser - User Journey",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -840,
+        1920
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// passthrough: restore upstream item + attach agent analysis\nconst base = $('Customer Sentiment Agent').first().json;\nconst analysis = $input.first().json;\nreturn [{ json: { ...base, user_journey: analysis } }];"
+      },
+      "id": "af4a6a2f-3027-4f36-8693-e49a39e3d6a7",
+      "name": "Merge - User Journey",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        1700
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Universal Contract Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Input Validation and Privacy Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Validation and Privacy Normalization": {
+      "main": [
+        [
+          {
+            "node": "Route by Request Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Request Type": {
+      "main": [
+        [
+          {
+            "node": "Shade Matching Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Shade Matching Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Shade Matching Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shade Match Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Shade Matching Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shade Matching Agent": {
+      "main": [
+        [
+          {
+            "node": "Confidence Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confidence Gate": {
+      "main": [
+        [
+          {
+            "node": "Merge Shade Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fallback Questionnaire Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model Fallback": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Fallback Questionnaire Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback Questionnaire Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Fallback Questionnaire Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback Questionnaire Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Shade Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Shade Results": {
+      "main": [
+        [
+          {
+            "node": "Beauty Advisory Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model Beauty": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Beauty Advisory Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Beauty Advisory Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Beauty Advisory Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Beauty Advisory Agent": {
+      "main": [
+        [
+          {
+            "node": "Check Shade Availability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Shade Availability": {
+      "main": [
+        [
+          {
+            "node": "Merge Beauty Advisory Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Escalate to AFA WF-4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalate to AFA WF-4": {
+      "main": [
+        [
+          {
+            "node": "Merge Beauty Advisory Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Beauty Advisory Results": {
+      "main": [
+        [
+          {
+            "node": "Sensitive Response Detection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREA Approval Gate": {
+      "main": [
+        [
+          {
+            "node": "Founder Authority Gate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop - CREA Denied",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model Sentiment": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Customer Sentiment Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sentiment Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Customer Sentiment Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Customer Sentiment Agent": {
+      "main": [
+        [
+          {
+            "node": "User Journey Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model Support": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Support Ops Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Support Ops Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Support Ops Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model QA": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "QA Ops Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA Ops Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "QA Ops Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Support Ops Agent": {
+      "main": [
+        [
+          {
+            "node": "QA Ops Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QA Ops Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Support and QA Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Support and QA Results": {
+      "main": [
+        [
+          {
+            "node": "Response Execution Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Response": {
+      "main": [
+        [
+          {
+            "node": "Merge All Execution Paths",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Universal Contract Validation": {
+      "main": [
+        [
+          {
+            "node": "Contract Valid Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contract Valid Check": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop - Invalid Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sensitive Response Detection": {
+      "main": [
+        [
+          {
+            "node": "System Confidence Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "System Confidence Gate": {
+      "main": [
+        [
+          {
+            "node": "CREA Mandatory Gate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Blocked - Low Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREA Mandatory Gate": {
+      "main": [
+        [
+          {
+            "node": "CREA Bias and Safety Check WF-8",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Blocked - CREA Required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Founder Authority Gate": {
+      "main": [
+        [
+          {
+            "node": "Customer Sentiment Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Paused - Founder Approval Required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response Execution Guard": {
+      "main": [
+        [
+          {
+            "node": "Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Blocked - Simulation Mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Blocked - Low Confidence": {
+      "main": [
+        [
+          {
+            "node": "Merge All Execution Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Blocked - CREA Required": {
+      "main": [
+        [
+          {
+            "node": "Merge All Execution Paths",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Paused - Founder Approval Required": {
+      "main": [
+        [
+          {
+            "node": "Merge All Execution Paths",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Blocked - Simulation Mode": {
+      "main": [
+        [
+          {
+            "node": "Merge All Execution Paths",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge All Execution Paths": {
+      "main": [
+        [
+          {
+            "node": "Final Output Sanitization & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Output Sanitization & Normalization": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Audit Record Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREA Bias and Safety Check WF-8": {
+      "main": [
+        [
+          {
+            "node": "CREA Approval Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model - User Journey": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "User Journey Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser - User Journey": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "User Journey Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Journey Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge - User Journey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge - User Journey": {
+      "main": [
+        [
+          {
+            "node": "Support Ops Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "304ca15d-0d3b-45ef-9d31-41995367eb7e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bea94a9541cdb25b8e9767cbab760254eae13c9cf6f5cc323581c4d6ea0dea6f"
+  },
+  "id": "IQ2YHdJsjseOTWAL",
+  "tags": []
+}

@@ -1,0 +1,1891 @@
+{
+  "name": "WF: 6- Sales Intelligence, Pricing & Revenue Conversion with CSO Approval",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "request_id"
+            },
+            {
+              "name": "mode"
+            },
+            {
+              "name": "confidence",
+              "type": "number"
+            },
+            {
+              "name": "risk_level"
+            },
+            {
+              "name": "payload",
+              "type": "object"
+            },
+            {
+              "name": "audit",
+              "type": "object"
+            },
+            {
+              "name": "crea_blocked",
+              "type": "boolean"
+            },
+            {
+              "name": "crea_approval",
+              "type": "boolean"
+            },
+            {
+              "name": "founder_approval",
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      "id": "10f5c582-3e26-4192-b416-ae01ebee3c13",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -4992,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "cso_approval_threshold",
+              "value": 10000,
+              "type": "number"
+            },
+            {
+              "id": "id-2",
+              "name": "cold_lead_max_score",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "id-3",
+              "name": "warm_lead_min_score",
+              "value": 31,
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "hot_lead_min_score",
+              "value": 70,
+              "type": "number"
+            },
+            {
+              "id": "id-5",
+              "name": "default_discount_max",
+              "value": 0.15,
+              "type": "number"
+            },
+            {
+              "id": "id-6",
+              "name": "crm_endpoint",
+              "value": "https://httpbin.org/post",
+              "type": "string"
+            },
+            {
+              "id": "cfg-founder_email",
+              "name": "founder_email",
+              "value": "admin@imperiality.app",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1f2aa276-6afb-4fd8-95de-e2eb5fd3e539",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4768,
+        848
+      ],
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input Validation & Normalization\n// Validates input schema, generates sales_id, adds timestamp, normalizes fields\n\n// Get input data\nconst items = $input.all();\n\nif (items.length === 0) {\n  throw new Error('No input data received');\n}\n\nconst inputData = items[0].json;\nconst payload = inputData.payload || {};\n\n// Check if payload is null or empty - provide helpful error with context\nif (!inputData.payload || typeof inputData.payload !== 'object' || Object.keys(inputData.payload).length === 0) {\n  // For testing/debugging: Create a sample payload structure\n  const samplePayload = {\n    company_name: 'Sample Company',\n    contact_email: 'contact@example.com',\n    contact_name: 'John Doe',\n    lead_source: 'website',\n    deal_size_estimate: 15000,\n    industry: 'Retail',\n    company_size: '50-100',\n    notes: 'Sample lead for testing'\n  };\n  \n  // Generate sales_id using native JavaScript\n  const sales_id = 'SALE-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15);\n  const timestamp = new Date().toISOString();\n  \n  // Return sample data with warning\n  return [{ \n    json: {\n      ...inputData,\n      sales_id: sales_id,\n      timestamp: timestamp,\n      company_name: samplePayload.company_name,\n      contact_email: samplePayload.contact_email,\n      contact_name: samplePayload.contact_name,\n      lead_source: samplePayload.lead_source,\n      deal_size_estimate: samplePayload.deal_size_estimate,\n      industry: samplePayload.industry,\n      company_size: samplePayload.company_size,\n      notes: samplePayload.notes + ' [WARNING: Using sample data - payload was null/empty]',\n      pricing_change: false,\n      contract_required: false,\n      _warning: 'Payload was null or empty - using sample data for testing'\n    }\n  }];\n}\n\n// Required fields validation\nconst requiredFields = ['company_name', 'contact_email', 'lead_source', 'deal_size_estimate'];\nconst missingFields = requiredFields.filter(field => !payload[field]);\n\nif (missingFields.length > 0) {\n  throw new Error('Missing required fields in payload: ' + missingFields.join(', ') + '. Required fields are: ' + requiredFields.join(', '));\n}\n\n// Generate sales_id using native JavaScript (no external dependencies)\nconst sales_id = 'SALE-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15);\n\n// Add timestamp\nconst timestamp = new Date().toISOString();\n\n// Build validated data object with all required fields\nconst validatedData = {\n  ...inputData,\n  sales_id: sales_id,\n  timestamp: timestamp,\n  company_name: payload.company_name,\n  contact_email: payload.contact_email,\n  contact_name: payload.contact_name || '',\n  lead_source: (payload.lead_source || '').toString().toLowerCase().trim(),\n  deal_size_estimate: parseFloat(payload.deal_size_estimate),\n  industry: payload.industry || '',\n  company_size: payload.company_size || '',\n  notes: payload.notes || '',\n  pricing_change: false,\n  contract_required: false\n};\n\n// Return validated data\nreturn [{ json: validatedData }];"
+      },
+      "id": "5dbf7c7a-6403-456e-a15d-b1885f807204",
+      "name": "Input Validation & Normalization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4096,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "e1c11714-92a9-4a48-ae74-f11e558fdc3d",
+      "name": "OpenAI Chat Model - Lead Qualification",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -3424,
+        368
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"lead_score\": 75,\n\t\"lead_type\": \"hot\",\n\t\"qualification_notes\": [\"Strong budget alignment\", \"Urgent timeline\", \"Decision maker engaged\"]\n}"
+      },
+      "id": "0183be8a-f462-4555-8f85-a72bde672545",
+      "name": "Lead Qualification Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -3296,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Lead Qualification Agent for a cosmetic brand sales intelligence system.\n\nYour task is to analyze incoming leads and score them based on:\n1. Intent - How clear is their purchase intent? (0-25 points)\n2. Budget - Do they have budget aligned with deal size? (0-25 points)\n3. Fit - How well do they match our ideal customer profile? (0-25 points)\n4. Urgency - What is their timeline to purchase? (0-25 points)\n\nScoring Guidelines:\n- 0-30: Cold lead (low intent, unclear budget, poor fit, or no urgency)\n- 31-69: Warm lead (moderate intent, some budget signals, reasonable fit)\n- 70-100: Hot lead (strong intent, confirmed budget, excellent fit, urgent timeline)\n\nProvide:\n- lead_score: Total score (0-100)\n- lead_type: \"cold\", \"warm\", or \"hot\" based on score\n- qualification_notes: Array of specific observations that influenced the score\n\nBe objective and data-driven. Your scoring directly impacts sales resource allocation."
+        }
+      },
+      "id": "cec0b880-bf85-44a4-b037-3107983b4e4c",
+      "name": "Lead Qualification Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -3424,
+        144
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.lead_type }}",
+              "rightValue": "cold",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f19e5978-da3d-4f62-9fb9-1274355c77fa",
+      "name": "Lead Routing Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -3072,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Cold Lead Auto-Nurture - Generate nurture email and mark as nurtured\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const leadData = item.json;\n  \n  // Extract lead information\n  const salesId = leadData.sales_id || leadData.id || 'UNKNOWN';\n  const companyName = leadData.company_name || leadData.company || 'Valued Customer';\n  const contactName = leadData.contact_name || leadData.name || 'there';\n  const email = leadData.email || leadData.contact_email || '';\n  const leadType = leadData.lead_type || 'cold';\n  const reason = leadData.qualification_reason || 'does not meet current qualification criteria';\n  \n  // Generate personalized nurture email\n  const nurtureEmail = {\n    to: email,\n    subject: `Stay Connected - ${companyName}`,\n    body: `Hi ${contactName},\\n\\nThank you for your interest in our services. While we understand that now may not be the right time for ${companyName} to move forward, we'd love to stay connected.\\n\\nWe'll be sharing valuable insights, industry updates, and special offers over the coming months that might be helpful for your business.\\n\\nReason for nurture track: ${reason}\\n\\nFeel free to reach out anytime if your needs change or if you'd like to discuss how we can support your goals.\\n\\nBest regards,\\nSales Team`,\n    type: 'nurture_sequence'\n  };\n  \n  // Create structured response\n  const response = {\n    sales_id: salesId,\n    status: 'simulation_only',\n    deal_status: 'not_committed',\n    decision_summary: 'Cold lead - auto-nurture sequence initiated',\n    lead_type: leadType,\n    deal_value: 0,\n    nurture_action: {\n      action_type: 'email_nurture_sequence',\n      email_generated: nurtureEmail,\n      next_followup_days: 30,\n      nurture_track: 'cold_lead_warming',\n      timestamp: new Date().toISOString()\n    },\n    company_name: companyName,\n    contact_name: contactName,\n    contact_email: email,\n    qualification_reason: reason,\n    workflow_stage: 'auto_nurture_complete'\n  };\n  \n  results.push(response);\n}\n\nreturn results.map(result => ({ json: result }));"
+      },
+      "id": "02732bcc-cb6a-41fd-9a8e-54e9d0d98e40",
+      "name": "Cold Lead Auto-Nurture",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "5d3605a3-125e-400c-9a7b-fc365760d609",
+      "name": "OpenAI Chat Model - Pricing Strategy",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -2848,
+        624
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"recommended_price\": 25000,\n\t\"discount_range\": [0, 0.10],\n\t\"pricing_rationale\": \"Based on deal size and market positioning, recommend premium pricing with up to 10% discount flexibility for strategic accounts\"\n}"
+      },
+      "id": "c8997ae8-57a1-441b-8419-d474b5d1a62f",
+      "name": "Pricing Strategy Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -2720,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Pricing Strategy Agent for a cosmetic brand sales intelligence system.\n\nYour task is to develop strategic pricing recommendations based on:\n1. Lead qualification data (score, type, notes)\n2. Deal size estimate\n3. Market positioning (premium cosmetic brand)\n4. Competitive landscape\n5. Customer segment and potential lifetime value\n\nPricing Guidelines:\n- Base pricing on value delivered, not just cost-plus\n- Hot leads: Premium pricing, minimal discount (0-5%)\n- Warm leads: Standard pricing, moderate discount flexibility (5-10%)\n- Consider deal size: Larger deals may warrant volume discounts\n- Strategic accounts: Up to 15% discount with CSO approval\n\nProvide:\n- recommended_price: Your recommended base price in USD\n- discount_range: [min_discount, max_discount] as decimals (e.g., [0, 0.10] for 0-10%)\n- pricing_rationale: Clear explanation of your pricing strategy\n\nYour pricing must be defensible to the CSO. Be strategic, not reactive."
+        }
+      },
+      "id": "1f4a7cc7-5a77-4a04-aed7-0629cea37fbb",
+      "name": "Pricing Strategy Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -2848,
+        400
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "096e5947-8be6-45c9-9e55-b520094401b9",
+      "name": "OpenAI Chat Model - CSO Orchestrator",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -2496,
+        624
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"decision\": \"approved\",\n\t\"cso_notes\": \"Pricing strategy is sound. Deal aligns with Q4 revenue targets. Approved to proceed.\",\n\t\"required_changes\": []\n}"
+      },
+      "id": "6f4173d6-4346-473d-9422-aff031b4a5d4",
+      "name": "CSO Approval Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -2368,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the CSO (Chief Sales Officer) Orchestrator Agent for a cosmetic brand.\n\nYour role is to review and approve/reject sales deals based on:\n1. Lead qualification quality\n2. Pricing strategy soundness\n3. Deal size and revenue impact\n4. Strategic alignment with company goals\n5. Risk assessment\n\nApproval Criteria:\n- Pricing must be justified and defensible\n- Discounts beyond 15% require strong rationale\n- Deal must align with brand positioning (premium cosmetics)\n- Lead qualification must be thorough\n- Revenue projections must be realistic\n\nDecision Options:\n1. \"approved\" - Deal proceeds to sales execution\n2. \"rejected\" - Deal is stopped (provide clear reasons)\n3. \"revision_required\" - Send back to pricing with specific changes needed\n\nProvide:\n- decision: \"approved\", \"rejected\", or \"revision_required\"\n- cso_notes: Your detailed reasoning and strategic assessment\n- required_changes: Array of specific changes needed (empty if approved)\n\nYou are the final gate before revenue commitment. Be thorough and strategic."
+        }
+      },
+      "id": "d8f8ee13-7903-48db-b56d-31bd9262aa21",
+      "name": "CSO Orchestrator Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -2496,
+        400
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('CSO Orchestrator Agent').item.json.decision }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cf01ffe6-e042-4317-90ff-502f4cd87d57",
+      "name": "CSO Decision Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2144,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle CSO rejection or revision request\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const csoDecision = item.json.cso_decision || item.json.decision;\n  const leadData = item.json;\n  \n  if (csoDecision === 'rejected') {\n    // Handle outright rejection - mark as lost\n    results.push({\n      json: {\n        ...leadData,\n        status: 'rejected',\n        deal_status: 'not_committed',\n        lost_reason: 'CSO rejected the deal',\n        cso_rejection_reason: leadData.rejection_reason || 'Deal does not meet approval criteria',\n        decision_summary: leadData.cso_notes || leadData.rejection_reason || 'Deal does not meet approval criteria',\n        final_decision: 'rejected',\n        timestamp: new Date().toISOString(),\n        workflow_stage: 'cso_rejection_handled'\n      }\n    });\n  } else if (csoDecision === 'revision_required') {\n    // Handle revision request - loop back to pricing with changes\n    results.push({\n      json: {\n        ...leadData,\n        status: 'revision_in_progress',\n        deal_status: 'not_committed',\n        revision_requested: true,\n        required_changes: leadData.required_changes || [],\n        cso_feedback: leadData.feedback || 'Revisions required before approval',\n        decision_summary: leadData.cso_notes || 'Revisions required before approval',\n        revision_count: (leadData.revision_count || 0) + 1,\n        timestamp: new Date().toISOString(),\n        workflow_stage: 'returning_to_pricing',\n        // Pass back to pricing agent for adjustments\n        loop_back_to_pricing: true\n      }\n    });\n  } else {\n    // Unexpected decision state\n    results.push({\n      json: {\n        ...leadData,\n        status: 'error',\n        deal_status: 'not_committed',\n        error_message: `Unexpected CSO decision: ${csoDecision}`,\n        decision_summary: `Unexpected CSO decision: ${csoDecision}`,\n        timestamp: new Date().toISOString(),\n        workflow_stage: 'rejection_handler_error'\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "id": "199f643a-e302-4b43-b77b-bf610ed9a747",
+      "name": "Handle Rejection",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1920,
+        240
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "db407384-3bc3-4da0-a57f-4e17261911dd",
+      "name": "OpenAI Chat Model - Sales Rep",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1024,
+        608
+      ],
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"outreach_email\": \"Subject: Partnership Opportunity\\n\\nDear [Contact],\\n\\nBased on our discussion...\",\n\t\"proposal_summary\": \"Comprehensive cosmetic product line for retail distribution\",\n\t\"negotiation_notes\": [\"Discussed volume commitments\", \"Confirmed delivery timeline\"],\n\t\"next_steps\": [\"Send formal proposal\", \"Schedule follow-up call\"]\n}"
+      },
+      "id": "dd954305-71a7-4547-b037-a73a0f8477dd",
+      "name": "Sales Rep Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -896,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a Sales Representative Agent for a premium cosmetic brand.\n\nYour task is to execute the sales process for CSO-approved deals:\n1. Craft personalized outreach emails\n2. Develop proposal summaries\n3. Document negotiation points\n4. Define clear next steps\n\nSales Approach:\n- Professional and consultative tone\n- Emphasize value and brand premium positioning\n- Reference the approved pricing strategy\n- Address lead qualification insights\n- Build urgency while maintaining relationship\n\nFor warm leads: Focus on education and value demonstration\nFor hot leads: Move quickly to proposal and close\n\nProvide:\n- outreach_email: Personalized email ready to send (include subject line)\n- proposal_summary: High-level summary of the proposed deal\n- negotiation_notes: Key points discussed or to discuss\n- next_steps: Clear action items with timeline\n\nYour goal is to convert approved leads into confirmed revenue. Be persuasive but authentic."
+        }
+      },
+      "id": "f74cdb3c-8978-4755-971a-9cb8499a8cc2",
+      "name": "Sales Rep Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -1024,
+        384
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "execute",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.founder_approval }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "953c72ba-56dc-4b00-bf77-e2fcde6f52c5",
+      "name": "Deal Confirmation Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -672,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simulation Mode Response - No CRM Mutation\n// Return deal details with simulation flag\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const dealData = item.json;\n  \n  results.push({\n    json: {\n      status: 'simulation_only',\n      deal_status: 'not_committed',\n      decision_summary: 'Simulation mode – NO SALES COMMITMENT',\n      mode: 'simulation',\n      note: 'NON-EXECUTABLE – FOR REVIEW ONLY',\n      deal_details: {\n        lead_id: dealData.lead_id || dealData.leadId,\n        company_name: dealData.company_name || dealData.companyName,\n        contact_name: dealData.contact_name || dealData.contactName,\n        qualification_score: dealData.qualification_score || dealData.qualificationScore,\n        pricing_strategy: dealData.pricing_strategy || dealData.pricingStrategy,\n        proposed_price: dealData.proposed_price || dealData.proposedPrice,\n        discount_percentage: dealData.discount_percentage || dealData.discountPercentage,\n        cso_approval: dealData.cso_approval || dealData.csoApproval,\n        sales_rep_notes: dealData.sales_rep_notes || dealData.salesRepNotes,\n        deal_stage: 'negotiating',\n        timestamp: new Date().toISOString()\n      },\n      message: 'Deal is in negotiation phase. Mode is set to simulation - no changes have been made to the CRM.'\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "6e1db55a-2df4-47fb-a229-97a0b209c606",
+      "name": "Simulation Mode Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// CRM Update with Idempotent Logic\n// Updates lead status to 'completed' and sets deal details\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Extract sales_id from previous agent output\n  const salesId = data.sales_id || data.lead_id || `SALE-${Date.now()}`;\n  const recommendedPrice = data.recommended_price || data.final_price || data.deal_value || 0;\n  \n  // Calculate expected close date (30 days from now)\n  const expectedCloseDate = new Date();\n  expectedCloseDate.setDate(expectedCloseDate.getDate() + 30);\n  \n  // Build decision summary from available data\n  const decisionSummary = {\n    lead_qualification: data.lead_type || data.qualification_score || 'N/A',\n    pricing_decision: data.pricing_rationale || data.recommended_price || 'N/A',\n    cso_approval: data.cso_notes || data.decision || 'approved',\n    sales_execution: data.proposal_summary || data.outreach_email || 'N/A'\n  };\n  \n  // Idempotent CRM update logic\n  // In a real implementation, this would check if sales_id exists in CRM\n  // For now, we'll create/update the record\n  \n  const crmRecord = {\n    sales_id: salesId,\n    lead_id: data.lead_id || data.company_name,\n    company_name: data.company_name,\n    status: 'completed',\n    deal_status: 'committed',\n    lead_status: 'won',\n    deal_value: recommendedPrice,\n    expected_close_date: expectedCloseDate.toISOString().split('T')[0],\n    updated_at: new Date().toISOString(),\n    sales_rep: data.sales_rep || 'AI Sales Agent',\n    pricing_strategy: data.pricing_strategy || 'standard',\n    discount_applied: data.discount_percentage || 0,\n    decision_summary: decisionSummary,\n    \n    // Preserve original data\n    original_data: {\n      company_size: data.company_size,\n      industry: data.industry,\n      budget: data.budget,\n      timeline: data.timeline,\n      qualification_score: data.qualification_score\n    },\n    \n    // Preserve all audit metadata\n    audit_metadata: {\n      crm_operation: 'upsert',\n      idempotency_key: salesId,\n      processed_by: 'n8n-sales-workflow',\n      workflow_id: $workflow.id,\n      workflow_name: $workflow.name,\n      execution_id: $execution.id,\n      timestamp: new Date().toISOString(),\n      lead_score: data.lead_score,\n      lead_type: data.lead_type,\n      cso_approved: data.cso_approved || true,\n      pricing_rationale: data.pricing_rationale,\n      cso_notes: data.cso_notes\n    }\n  };\n  \n  results.push({\n    json: crmRecord\n  });\n}\n\nreturn results;"
+      },
+      "id": "a4d62276-2326-4a81-9e07-01e799be164d",
+      "name": "CRM Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "rNv9DzGl7IFHotwO",
+          "mode": "id",
+          "cachedResultName": "rNv9DzGl7IFHotwO"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "a58cfc0a-5292-4d26-9af4-8564c293215c",
+      "name": "Notify Finance (WF-2)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        592
+      ],
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log All Operations - Comprehensive Workflow Logging\n// Captures ALL execution paths: lead scoring, pricing decisions, CSO approvals, CRM updates, finance notifications,\n// confidence gates, founder approvals, CREA blocks, and execution metadata\n\nconst items = $input.all();\nconst timestamp = new Date().toISOString();\nconst workflowId = $workflow.id;\nconst workflowName = $workflow.name;\nconst executionId = $execution.id;\n\n// Initialize comprehensive log entry\nconst logEntry = {\n  timestamp,\n  workflow: {\n    id: workflowId,\n    name: workflowName,\n    executionId\n  },\n  operations: [],\n  summary: {\n    totalItems: items.length,\n    leadScores: [],\n    pricingDecisions: [],\n    csoApprovals: [],\n    crmUpdates: [],\n    financeNotifications: [],\n    confidenceGates: [],\n    founderApprovals: [],\n    creaBlocks: [],\n    contractValidations: [],\n    dealCommitments: [],\n    executionPaths: []\n  },\n  decisionPoints: {\n    coldLeadNurtures: 0,\n    csoRejections: 0,\n    csoRevisionsRequired: 0,\n    lowConfidencePaused: 0,\n    creaBlocked: 0,\n    founderApprovalRequired: 0,\n    founderApprovalGranted: 0,\n    simulationMode: 0,\n    executionMode: 0,\n    hotLeads: 0,\n    warmLeads: 0\n  }\n};\n\n// Process each item and extract ALL relevant data\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i].json;\n  \n  const operation = {\n    itemIndex: i,\n    \n    // Core workflow data\n    leadScore: item.lead_score || item.leadScore || null,\n    leadType: item.lead_type || item.leadType || null,\n    pricingDecision: item.pricing_decision || item.pricingDecision || null,\n    csoApproval: item.cso_approval || item.csoApproval || null,\n    csoDecision: item.cso_decision || item.decision || null,\n    crmUpdate: item.crm_update || item.crmUpdate || null,\n    financeNotification: item.finance_notification || item.financeNotification || null,\n    \n    // New tracking fields\n    confidenceScore: item.confidence_score || item.confidenceScore || null,\n    confidenceGatePassed: item.confidence_gate_passed || item.confidenceGatePassed || null,\n    founderApprovalRequired: item.founder_approval_required || item.founderApprovalRequired || null,\n    founderApprovalStatus: item.founder_approval_status || item.founderApprovalStatus || null,\n    creaBlocked: item.crea_blocked || item.creaBlocked || null,\n    creaBlockReason: item.crea_block_reason || item.creaBlockReason || null,\n    contractValid: item.contract_valid || item.contractValid || null,\n    dealCommitted: item.deal_committed || item.dealCommitted || null,\n    executionMode: item.mode || null,\n    status: item.status || null,\n    workflowStage: item.workflow_stage || item.workflowStage || null,\n    \n    // Execution path tracking\n    executionPath: item.execution_path || item.executionPath || 'unknown',\n    \n    rawData: item\n  };\n  \n  logEntry.operations.push(operation);\n  \n  // Aggregate summary data\n  if (operation.leadScore) {\n    logEntry.summary.leadScores.push(operation.leadScore);\n  }\n  if (operation.pricingDecision) {\n    logEntry.summary.pricingDecisions.push(operation.pricingDecision);\n  }\n  if (operation.csoApproval) {\n    logEntry.summary.csoApprovals.push(operation.csoApproval);\n  }\n  if (operation.crmUpdate) {\n    logEntry.summary.crmUpdates.push(operation.crmUpdate);\n  }\n  if (operation.financeNotification) {\n    logEntry.summary.financeNotifications.push(operation.financeNotification);\n  }\n  if (operation.confidenceScore !== null) {\n    logEntry.summary.confidenceGates.push({\n      score: operation.confidenceScore,\n      passed: operation.confidenceGatePassed\n    });\n  }\n  if (operation.founderApprovalRequired !== null) {\n    logEntry.summary.founderApprovals.push({\n      required: operation.founderApprovalRequired,\n      status: operation.founderApprovalStatus\n    });\n  }\n  if (operation.creaBlocked) {\n    logEntry.summary.creaBlocks.push({\n      blocked: operation.creaBlocked,\n      reason: operation.creaBlockReason\n    });\n  }\n  if (operation.contractValid !== null) {\n    logEntry.summary.contractValidations.push(operation.contractValid);\n  }\n  if (operation.dealCommitted !== null) {\n    logEntry.summary.dealCommitments.push(operation.dealCommitted);\n  }\n  if (operation.executionPath) {\n    logEntry.summary.executionPaths.push(operation.executionPath);\n  }\n  \n  // Track decision points\n  if (operation.leadType === 'cold') {\n    logEntry.decisionPoints.coldLeadNurtures++;\n  }\n  if (operation.leadType === 'hot') {\n    logEntry.decisionPoints.hotLeads++;\n  }\n  if (operation.leadType === 'warm') {\n    logEntry.decisionPoints.warmLeads++;\n  }\n  if (operation.csoDecision === 'rejected') {\n    logEntry.decisionPoints.csoRejections++;\n  }\n  if (operation.csoDecision === 'revision_required') {\n    logEntry.decisionPoints.csoRevisionsRequired++;\n  }\n  if (operation.status === 'low_confidence_paused') {\n    logEntry.decisionPoints.lowConfidencePaused++;\n  }\n  if (operation.creaBlocked === true) {\n    logEntry.decisionPoints.creaBlocked++;\n  }\n  if (operation.founderApprovalRequired === true) {\n    logEntry.decisionPoints.founderApprovalRequired++;\n  }\n  if (operation.founderApprovalStatus === 'approved') {\n    logEntry.decisionPoints.founderApprovalGranted++;\n  }\n  if (operation.executionMode === 'simulation') {\n    logEntry.decisionPoints.simulationMode++;\n  }\n  if (operation.executionMode === 'execute') {\n    logEntry.decisionPoints.executionMode++;\n  }\n}\n\n// Console logging with structured output\nconsole.log('='.repeat(80));\nconsole.log('COMPREHENSIVE WORKFLOW EXECUTION LOG');\nconsole.log('='.repeat(80));\nconsole.log(`Timestamp: ${timestamp}`);\nconsole.log(`Workflow: ${workflowName} (${workflowId})`);\nconsole.log(`Execution ID: ${executionId}`);\nconsole.log(`Total Items Processed: ${items.length}`);\nconsole.log('-'.repeat(80));\n\n// Log summary statistics\nconsole.log('\\nCORE OPERATIONS SUMMARY:');\nconsole.log(`  Lead Scores: ${logEntry.summary.leadScores.length}`);\nconsole.log(`  Pricing Decisions: ${logEntry.summary.pricingDecisions.length}`);\nconsole.log(`  CSO Approvals: ${logEntry.summary.csoApprovals.length}`);\nconsole.log(`  CRM Updates: ${logEntry.summary.crmUpdates.length}`);\nconsole.log(`  Finance Notifications: ${logEntry.summary.financeNotifications.length}`);\n\nconsole.log('\\nGATES & CONTROLS SUMMARY:');\nconsole.log(`  Confidence Gates: ${logEntry.summary.confidenceGates.length}`);\nconsole.log(`  Founder Approvals: ${logEntry.summary.founderApprovals.length}`);\nconsole.log(`  CREA Blocks: ${logEntry.summary.creaBlocks.length}`);\nconsole.log(`  Contract Validations: ${logEntry.summary.contractValidations.length}`);\nconsole.log(`  Deal Commitments: ${logEntry.summary.dealCommitments.length}`);\n\nconsole.log('\\nDECISION POINTS:');\nconsole.log(`  Cold Lead Nurtures: ${logEntry.decisionPoints.coldLeadNurtures}`);\nconsole.log(`  Hot Leads: ${logEntry.decisionPoints.hotLeads}`);\nconsole.log(`  Warm Leads: ${logEntry.decisionPoints.warmLeads}`);\nconsole.log(`  CSO Rejections: ${logEntry.decisionPoints.csoRejections}`);\nconsole.log(`  CSO Revisions Required: ${logEntry.decisionPoints.csoRevisionsRequired}`);\nconsole.log(`  Low Confidence Paused: ${logEntry.decisionPoints.lowConfidencePaused}`);\nconsole.log(`  CREA Blocked: ${logEntry.decisionPoints.creaBlocked}`);\nconsole.log(`  Founder Approval Required: ${logEntry.decisionPoints.founderApprovalRequired}`);\nconsole.log(`  Founder Approval Granted: ${logEntry.decisionPoints.founderApprovalGranted}`);\nconsole.log(`  Simulation Mode: ${logEntry.decisionPoints.simulationMode}`);\nconsole.log(`  Execution Mode: ${logEntry.decisionPoints.executionMode}`);\n\nconsole.log('\\nEXECUTION PATHS:');\nconst pathCounts = {};\nlogEntry.summary.executionPaths.forEach(path => {\n  pathCounts[path] = (pathCounts[path] || 0) + 1;\n});\nObject.entries(pathCounts).forEach(([path, count]) => {\n  console.log(`  ${path}: ${count}`);\n});\n\n// Log detailed operations\nconsole.log('\\nDETAILED OPERATIONS:');\nlogEntry.operations.forEach((op, idx) => {\n  console.log(`\\n  Item ${idx}:`);\n  console.log(`    Execution Path: ${op.executionPath}`);\n  console.log(`    Workflow Stage: ${op.workflowStage || 'N/A'}`);\n  console.log(`    Status: ${op.status || 'N/A'}`);\n  if (op.leadScore) console.log(`    Lead Score: ${JSON.stringify(op.leadScore)}`);\n  if (op.leadType) console.log(`    Lead Type: ${op.leadType}`);\n  if (op.pricingDecision) console.log(`    Pricing Decision: ${JSON.stringify(op.pricingDecision)}`);\n  if (op.csoApproval !== null) console.log(`    CSO Approval: ${op.csoApproval}`);\n  if (op.csoDecision) console.log(`    CSO Decision: ${op.csoDecision}`);\n  if (op.confidenceScore !== null) console.log(`    Confidence Score: ${op.confidenceScore} (Passed: ${op.confidenceGatePassed})`);\n  if (op.founderApprovalRequired !== null) console.log(`    Founder Approval Required: ${op.founderApprovalRequired} (Status: ${op.founderApprovalStatus || 'pending'})`);\n  if (op.creaBlocked) console.log(`    CREA Blocked: ${op.creaBlocked} (Reason: ${op.creaBlockReason})`);\n  if (op.contractValid !== null) console.log(`    Contract Valid: ${op.contractValid}`);\n  if (op.dealCommitted !== null) console.log(`    Deal Committed: ${op.dealCommitted}`);\n  if (op.executionMode) console.log(`    Execution Mode: ${op.executionMode}`);\n  if (op.crmUpdate) console.log(`    CRM Update: ${JSON.stringify(op.crmUpdate)}`);\n  if (op.financeNotification) console.log(`    Finance Notification: ${JSON.stringify(op.financeNotification)}`);\n});\n\nconsole.log('\\n' + '='.repeat(80));\n\n// Return the comprehensive log entry for downstream processing\nreturn [{ json: logEntry }];"
+      },
+      "id": "da076c94-592a-4911-9d62-09d94f279662",
+      "name": "Log All Operations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "cso_approved",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-2",
+              "name": "pricing_change",
+              "value": "={{ $('Pricing Strategy Agent').item.json.discount_range[1] > 0 }}",
+              "type": "boolean"
+            },
+            {
+              "id": "id-3",
+              "name": "contract_required",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "dd0a857c-e9b8-47f4-ac0f-448157005027",
+      "name": "Mark CSO Approved",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1920,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.lead_type }}",
+              "rightValue": "hot",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "26b6d1b0-40a8-42b0-bbaf-acd016a84af3",
+      "name": "Hot vs Warm Lead Split",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1264,
+        688
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "351daa41-5a89-4b90-a836-0c40c109ece3",
+      "name": "OpenAI Chat Model - Senior Sales Rep",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1024,
+        1104
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"outreach_email\": \"Subject: Partnership Opportunity\\n\\nDear [Contact],\\n\\nBased on our discussion...\",\n\t\"proposal_summary\": \"Comprehensive cosmetic product line for retail distribution\",\n\t\"negotiation_notes\": [\"Discussed volume commitments\", \"Confirmed delivery timeline\"],\n\t\"next_steps\": [\"Send formal proposal\", \"Schedule follow-up call\"]\n}"
+      },
+      "id": "539b67f5-a346-4327-8a14-137b6b1eebcf",
+      "name": "Senior Sales Rep Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -896,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a Senior Sales Representative Agent for a premium cosmetic brand handling HIGH-PRIORITY hot leads.\n\nYour task is to execute the sales process for CSO-approved HOT LEADS with urgency and priority:\n1. Craft personalized, high-touch outreach emails\n2. Develop comprehensive proposal summaries\n3. Document negotiation points\n4. Define clear next steps with aggressive timelines\n\nSales Approach for HOT LEADS:\n- Executive-level, consultative tone\n- Emphasize premium value and exclusivity\n- Reference the approved pricing strategy\n- Leverage lead qualification insights showing strong intent\n- Create urgency while building strategic partnership\n- Move quickly to close - hot leads require immediate action\n\nProvide:\n- outreach_email: Executive-level personalized email (include subject line)\n- proposal_summary: Comprehensive summary emphasizing strategic value\n- negotiation_notes: Key points and value propositions\n- next_steps: Aggressive action items with tight timelines\n\nYour goal is to convert hot leads into confirmed revenue FAST. Be persuasive, strategic, and move with urgency."
+        }
+      },
+      "id": "462364c4-a2fa-43a2-9d9a-2960f2926a87",
+      "name": "Senior Sales Rep Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -1024,
+        880
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all(); const data = items[0]?.json || {}; const required = ['request_id', 'mode', 'confidence', 'risk_level', 'payload', 'audit']; const missing = required.filter(f => data[f] === undefined || data[f] === null); const is_valid = missing.length === 0; return [{ json: { ...data, contract_validation: { is_valid, missing_fields: missing, validated_at: new Date().toISOString() } } }];"
+      },
+      "id": "e5ae1b25-f142-4008-a4c1-f84d1915fa80",
+      "name": "Universal Contract Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4544,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "=WF-6 REJECTED: Invalid or incomplete universal contract from WF-0. Missing fields: {{ $json.contract_validation.missing_fields.join(\", \") }}"
+      },
+      "id": "658f9240-b628-4c16-a332-04705976ec64",
+      "name": "Stop - Invalid Contract",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -4096,
+        944
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.contract_validation.is_valid }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "08c0103a-f6bb-487e-9531-9e5f987ddbfb",
+      "name": "Contract Validation Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -4320,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Execute Workflow Trigger').item.json.mode }}",
+              "rightValue": "execute",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $('Execute Workflow Trigger').item.json.mode }}",
+              "operator": {
+                "type": "string",
+                "operation": "empty"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "0a5f54f2-d644-4c86-bf76-a0eb348e4f1e",
+      "name": "Deal Commitment Guard",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -448,
+        1056
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.confidence }}",
+              "rightValue": 0.9,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "abaed2c8-fd34-407c-8f5f-9260612a0699",
+      "name": "Sales Confidence Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -3872,
+        1344
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "paused",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "decision",
+              "value": "NO-COMMITMENT",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "human_approval_required",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-4",
+              "name": "pause_reason",
+              "value": "System confidence below 90% threshold for sales autonomy",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "confidence_value",
+              "value": "={{ $json.confidence }}",
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "c57abcab-7819-49df-99e5-1739933a617b",
+      "name": "Mark Low Confidence - Paused",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        1216
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.pricing_change === true || $json.contract_required === true }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.founder_approval }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2c9fbae2-3e09-4039-8605-707c6e764f29",
+      "name": "Founder Approval Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1696,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Workflow Configuration').item.json.founder_email }}",
+        "subject": "=URGENT: Founder Approval Required - WF-6 Sales Deal {{ $json.request_id }}",
+        "message": "=A sales deal requires your approval:\n\nRequest ID: {{ $json.request_id }}\nCompany: {{ $json.payload.company_name }}\nDeal Size: ${{ $json.payload.deal_size_estimate }}\nPricing Change: {{ $json.pricing_change }}\nContract Required: {{ $json.contract_required }}\n\nClick to approve: {{ $resumeWebhookUrl }}",
+        "options": {}
+      },
+      "id": "e723a25b-12f1-47ce-98b3-ebeaae280409",
+      "name": "Send Founder Approval Request",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -1472,
+        928
+      ],
+      "webhookId": "780433ad-afa6-4fe3-a785-d9c71b98e9d3",
+      "alwaysOutputData": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "skwdI5mECVtxTm2L",
+          "name": "Gmail OAuth2 API"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.crea_blocked === true || ($json.risk_level === 'high' && $json.crea_approval !== true) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8e2944ff-8752-4505-9fcb-8f8af11f1b3d",
+      "name": "CREA Respect Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -3648,
+        1392
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "WF-6 BLOCKED: CREA authority has blocked this deal or high risk requires CREA approval"
+      },
+      "id": "d03b5576-0980-402a-9cf2-fc2d5608cf76",
+      "name": "Stop - CREA Blocked",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -3072,
+        1440
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "blocked",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "blocked_by",
+              "value": "CREA",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "block_reason",
+              "value": "CREA blocked or high risk without CREA approval",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "decision",
+              "value": "NO-COMMITMENT",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "a3e3672c-2c7a-4c0a-94f4-f35201e2d73b",
+      "name": "Mark CREA Blocked",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3360,
+        1440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all(); const data = items[0]?.json || {}; const output = { workflow_id: 'WF-6', request_id: data.request_id || '', status: data.status || 'completed', deal_status: data.deal_status || (data.status === 'completed' ? 'committed' : 'not_committed'), decision_summary: data.decision_summary || data.cso_notes || '', confidence: $('Execute Workflow Trigger').item.json.confidence, risk_level: data.risk_level || 'medium', pricing_change: data.pricing_change || false, contract_required: data.contract_required || false, founder_approval_required: data.founder_approval_required || false, approvals: data.approvals || [], next_allowed_actions: data.next_allowed_actions || [], audit: { timestamp: new Date().toISOString(), performed_by: 'WF-6', notes: data.audit_record?.notes || [] } }; return [{ json: output }];"
+      },
+      "id": "81bc509c-55de-41a7-8a7a-567a03aefc6f",
+      "name": "Final Output Sanitization & Normalization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "audit_record",
+              "value": "={{ {\n  request_id: $json.request_id,\n  mode: $json.mode,\n  confidence: $json.confidence,\n  pricing_change: $json.pricing_change || false,\n  contract_required: $json.contract_required || false,\n  founder_approval_state: $json.founder_approval || false,\n  execution_reason: $json.status === 'completed' ? 'All gates passed' : $json.block_reason || $json.pause_reason || 'Unknown',\n  timestamp: new Date().toISOString(),\n  performed_by: 'WF-6'\n} }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "7dcda2af-5ab4-4562-ad6d-3f6371e097b7",
+      "name": "Build Audit Record",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        448,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 5
+      },
+      "id": "75f4730a-4a71-4c8c-9989-b37d63a0f6a5",
+      "name": "Merge All Execution Paths",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        240,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($('Input Validation & Normalization').item.json.payload ?? $('Input Validation & Normalization').item.json) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Partnerships Agent (L3) reporting to CSO. Manage B2B relationships (salons, retailers, distributors). Evaluate partner fit, expected revenue, and propose contract terms and negotiation strategy. No contracts auto-signed. Return JSON only."
+        }
+      },
+      "id": "42ea62f6-e583-4aed-92cd-1a14fb667f84",
+      "name": "Partnerships Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -1600,
+        1600
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "344b3de6-a53b-4dd4-a142-d2c191e5cf77",
+      "name": "Model - Partnerships",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1584,
+        1820
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"partner_fit\": {\"type\": \"string\", \"enum\": [\"low\", \"medium\", \"high\"]}, \"expected_revenue\": {\"type\": \"string\"}, \"proposed_terms\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}, \"negotiation_strategy\": {\"type\": \"string\"}, \"explanation\": {\"type\": \"string\"}}, \"required\": [\"partner_fit\", \"explanation\"]}"
+      },
+      "id": "fc3ba0d8-8c41-42ac-8eb3-e675d3feb9d7",
+      "name": "Parser - Partnerships",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1440,
+        1820
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// passthrough: restore upstream item + attach agent analysis\nconst base = $('Pricing Strategy Agent').first().json;\nconst analysis = $input.first().json;\nreturn [{ json: { ...base, partnerships: analysis } }];"
+      },
+      "id": "171179d8-565e-4ba0-8dce-40ad7e2e173e",
+      "name": "Merge - Partnerships",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1240,
+        1600
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($('Input Validation & Normalization').item.json.payload ?? $('Input Validation & Normalization').item.json) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the Write Email for Leads Agent (L4) reporting to Lead Qualification. Generate persuasive, personalized outreach/follow-up/nurture emails based on lead info and funnel stage. Return JSON only."
+        }
+      },
+      "id": "a2c35b5d-6285-4195-9936-9d60bcf61aa4",
+      "name": "Write Email for Leads Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -1600,
+        2100
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "dcea02ba-2e17-4e87-8b3f-7679a7d1e14f",
+      "name": "Model - Write Email for Leads",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1584,
+        2320
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5QzdOMqVT558sjcl",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"email_subject\": {\"type\": \"string\"}, \"email_body\": {\"type\": \"string\"}, \"sequence_stage\": {\"type\": \"string\"}, \"explanation\": {\"type\": \"string\"}}, \"required\": [\"email_subject\", \"email_body\"]}"
+      },
+      "id": "a5c12bf9-c222-4ef7-9496-790a018fd71b",
+      "name": "Parser - Write Email for Leads",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1440,
+        2320
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// passthrough: restore upstream item + attach agent analysis\nconst base = $('Cold Lead Auto-Nurture').first().json;\nconst analysis = $input.first().json;\nreturn [{ json: { ...base, lead_email: analysis } }];"
+      },
+      "id": "e6175f24-7e7d-4721-891c-5a6f0e3e1291",
+      "name": "Merge - Write Email for Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1240,
+        2100
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Validation & Normalization": {
+      "main": [
+        [
+          {
+            "node": "Lead Qualification Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Sales Confidence Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Lead Qualification": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Lead Qualification Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Qualification Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Lead Qualification Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Qualification Agent": {
+      "main": [
+        [
+          {
+            "node": "Lead Routing Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Routing Gate": {
+      "main": [
+        [
+          {
+            "node": "Cold Lead Auto-Nurture",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pricing Strategy Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Pricing Strategy": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Pricing Strategy Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pricing Strategy Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Pricing Strategy Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pricing Strategy Agent": {
+      "main": [
+        [
+          {
+            "node": "Partnerships Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - CSO Orchestrator": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CSO Orchestrator Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSO Approval Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "CSO Orchestrator Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSO Orchestrator Agent": {
+      "main": [
+        [
+          {
+            "node": "CSO Decision Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSO Decision Gate": {
+      "main": [
+        [
+          {
+            "node": "Handle Rejection",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark CSO Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Sales Rep": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Sales Rep Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sales Rep Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Sales Rep Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sales Rep Agent": {
+      "main": [
+        [
+          {
+            "node": "Deal Confirmation Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deal Confirmation Gate": {
+      "main": [
+        [
+          {
+            "node": "Simulation Mode Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CRM Update",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Deal Commitment Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM Update": {
+      "main": [
+        [
+          {
+            "node": "Notify Finance (WF-2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Finance (WF-2)": {
+      "main": [
+        [
+          {
+            "node": "Merge All Execution Paths",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Simulation Mode Response": {
+      "main": [
+        [
+          {
+            "node": "Merge All Execution Paths",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Cold Lead Auto-Nurture": {
+      "main": [
+        [
+          {
+            "node": "Write Email for Leads Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Rejection": {
+      "main": [
+        [
+          {
+            "node": "Pricing Strategy Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge All Execution Paths",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Mark CSO Approved": {
+      "main": [
+        [
+          {
+            "node": "Founder Approval Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hot vs Warm Lead Split": {
+      "main": [
+        [
+          {
+            "node": "Sales Rep Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Senior Sales Rep Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Senior Sales Rep": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Senior Sales Rep Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Senior Sales Rep Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Senior Sales Rep Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Senior Sales Rep Agent": {
+      "main": [
+        [
+          {
+            "node": "Deal Confirmation Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Universal Contract Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Universal Contract Validation": {
+      "main": [
+        [
+          {
+            "node": "Contract Validation Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contract Validation Gate": {
+      "main": [
+        [
+          {
+            "node": "Stop - Invalid Contract",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Input Validation & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sales Confidence Gate": {
+      "main": [
+        [
+          {
+            "node": "Mark Low Confidence - Paused",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CREA Respect Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREA Respect Gate": {
+      "main": [
+        [
+          {
+            "node": "Mark CREA Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lead Qualification Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark CREA Blocked": {
+      "main": [
+        [
+          {
+            "node": "Stop - CREA Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Founder Approval Gate": {
+      "main": [
+        [
+          {
+            "node": "Send Founder Approval Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Hot vs Warm Lead Split",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Founder Approval Request": {
+      "main": [
+        [
+          {
+            "node": "Hot vs Warm Lead Split",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deal Commitment Guard": {
+      "main": [
+        [
+          {
+            "node": "Simulation Mode Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CRM Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Low Confidence - Paused": {
+      "main": [
+        [
+          {
+            "node": "Merge All Execution Paths",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge All Execution Paths": {
+      "main": [
+        [
+          {
+            "node": "Build Audit Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Audit Record": {
+      "main": [
+        [
+          {
+            "node": "Final Output Sanitization & Normalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Output Sanitization & Normalization": {
+      "main": [
+        [
+          {
+            "node": "Log All Operations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model - Partnerships": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Partnerships Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser - Partnerships": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Partnerships Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Partnerships Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge - Partnerships",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge - Partnerships": {
+      "main": [
+        [
+          {
+            "node": "CSO Orchestrator Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model - Write Email for Leads": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Write Email for Leads Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser - Write Email for Leads": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Write Email for Leads Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Email for Leads Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge - Write Email for Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge - Write Email for Leads": {
+      "main": [
+        [
+          {
+            "node": "Merge All Execution Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "b141e04a-41fe-4539-873f-8dfbcf255efd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bea94a9541cdb25b8e9767cbab760254eae13c9cf6f5cc323581c4d6ea0dea6f"
+  },
+  "id": "fjiL4YeNQ7FN4Yn5",
+  "tags": []
+}
