@@ -15,10 +15,12 @@ balances a real company has.
 
 A request comes in (a task, a decision to make, a job to run). It is:
 
-1. **Classified and routed** by a CEO orchestrator agent.
+1. **Decomposed and routed** by a CEO orchestrator agent — a multi-part request is split into
+   per-department subtasks (e.g. "run a campaign, collect feedback, and reorder stock" becomes
+   three subtasks), and each is routed to the right department. A simple request becomes one subtask.
 2. **Cleared by a governance authority** before anything happens — schema-validated, risk-scored,
-   and gated.
-3. **Executed by the relevant department**, where a team of specialist agents (a department
+   and gated (per subtask).
+3. **Executed by every relevant department**, where a team of specialist agents (a department
    head + analysts + operational agents) reason through it and produce a decision.
 4. **Re-cleared by governance** before any real-world action is taken.
 5. **Logged to a decision ledger** and returned to the caller.
@@ -34,10 +36,10 @@ a pile of prompts.
                               │
                               ▼
                  ┌───────────────────────────┐
-                 │  WF-0 · CEO Orchestrator   │   classifies intent, builds the
-                 │  (the "front door")        │   Universal Decision Contract
+                 │  WF-0 · CEO Orchestrator   │   decomposes the request into
+                 │  (the "front door")        │   per-department subtasks (fan-out)
                  └─────────────┬──────────────┘
-                               │  ① approval gate
+                               │  ① approval gate (per subtask)
                                ▼
                  ┌───────────────────────────┐
                  │ WF-10 · Global Guardrail   │   validate → risk-score → approve/block
@@ -55,7 +57,7 @@ a pile of prompts.
                           final response
 ```
 
-- **WF-0 — CEO Orchestrator:** the single entry point. Classifies the request and routes it.
+- **WF-0 — CEO Orchestrator:** the single entry point. Decomposes a request into per-department subtasks and fans them out (a compound task runs across several departments at once).
 - **WF-10 — Global Guardrail:** the governance authority every decision passes through (twice).
 - **WF-1…WF-9 + WF-HR — Departments:** Strategy, Finance, Operations, R&D, Marketing, Sales,
   Customer Experience, Risk & Ethics, Technology/Infrastructure, and Human Resources.

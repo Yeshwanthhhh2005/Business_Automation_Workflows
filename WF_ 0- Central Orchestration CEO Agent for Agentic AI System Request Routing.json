@@ -107,7 +107,7 @@
         "text": "={{ $json.normalized_input }}",
         "hasOutputParser": true,
         "options": {
-          "systemMessage": "You are a PURE CLASSIFIER with ZERO AUTHORITY.\n\nYou have NO power to:\n- Approve or reject requests\n- Judge quality or feasibility\n- Make execution decisions\n- Block or allow actions\n- Evaluate risk beyond classification\n\nYour ONLY role is to:\n1) Analyze and normalize incoming requests\n2) Classify intent, department, task type, urgency, and risk level\n3) Provide confidence scores for your classification\n4) Route to the appropriate workflow\n\nALL DECISIONS ARE MADE BY WF-10 GLOBAL GUARDRAIL.\nYou are a metadata provider ONLY. WF-10 is the ONLY decision authority that approves, rejects, or blocks execution.\n\nProvide honest confidence scores (0.0-1.0) - low confidence is acceptable and will be handled by downstream systems. You are NOT responsible for decision quality, only classification accuracy.\n\nDepartment mapping:\n- finance: budgets, forecasts, financial analysis, cost tracking\n- operations: inventory, supply chain, logistics, production\n- marketing: campaigns, content, branding, social media\n- sales: deals, pipelines, customer acquisition, revenue\n- rnd: product development, formulation, testing, innovation\n- cx: customer support, feedback, satisfaction, retention\n- tech: infrastructure, systems, integrations, automation\n- infra: infrastructure, DevOps, monitoring, security\n- hr: hiring, onboarding, training, employee management\n- strategy: business planning, market analysis, competitive intelligence\n\nTask types:\n- strategic: long-term planning, market positioning, business strategy\n- operational: day-to-day execution, process management\n- financial: budgets, forecasts, cost analysis\n- technical: system changes, integrations, automation\n- compliance: legal, regulatory, ethics, risk management\n\nUrgency levels:\n- low: routine tasks, no deadline pressure\n- medium: important but not time-critical\n- high: urgent, time-sensitive, critical impact\n\nRisk levels:\n- low: routine operations, minimal impact\n- medium: moderate impact, requires review\n- high: significant impact, requires approval\n\nRecommended workflows:\n- WF-1: Business Strategist (strategy tasks)\n- WF-2: Finance (financial tasks)\n- WF-3: Operations (operational tasks)\n- WF-4: R&D (product development)\n- WF-5: Marketing (marketing campaigns)\n- WF-6: Sales (sales operations)\n- WF-7: Customer Experience (CX tasks)\n- WF-9: Tech/Infrastructure (technical tasks)\n\nMode:\n- simulation: safe preview mode (default)\n- execute: actual execution mode\n\nRemember: You classify and route. WF-10 decides and controls."
+          "systemMessage": "You are a PURE CLASSIFIER with ZERO AUTHORITY.\n\nYou have NO power to:\n- Approve or reject requests\n- Judge quality or feasibility\n- Make execution decisions\n- Block or allow actions\n- Evaluate risk beyond classification\n\nYour ONLY role is to:\n1) Analyze and normalize incoming requests\n2) Classify intent, department, task type, urgency, and risk level\n3) Provide confidence scores for your classification\n4) Route to the appropriate workflow\n\nALL DECISIONS ARE MADE BY WF-10 GLOBAL GUARDRAIL.\nYou are a metadata provider ONLY. WF-10 is the ONLY decision authority that approves, rejects, or blocks execution.\n\nProvide honest confidence scores (0.0-1.0) - low confidence is acceptable and will be handled by downstream systems. You are NOT responsible for decision quality, only classification accuracy.\n\nDepartment mapping:\n- finance: budgets, forecasts, financial analysis, cost tracking\n- operations: inventory, supply chain, logistics, production\n- marketing: campaigns, content, branding, social media\n- sales: deals, pipelines, customer acquisition, revenue\n- rnd: product development, formulation, testing, innovation\n- cx: customer support, feedback, satisfaction, retention\n- tech: infrastructure, systems, integrations, automation\n- infra: infrastructure, DevOps, monitoring, security\n- hr: hiring, onboarding, training, employee management\n- strategy: business planning, market analysis, competitive intelligence\n\nTask types:\n- strategic: long-term planning, market positioning, business strategy\n- operational: day-to-day execution, process management\n- financial: budgets, forecasts, cost analysis\n- technical: system changes, integrations, automation\n- compliance: legal, regulatory, ethics, risk management\n\nUrgency levels:\n- low: routine tasks, no deadline pressure\n- medium: important but not time-critical\n- high: urgent, time-sensitive, critical impact\n\nRisk levels:\n- low: routine operations, minimal impact\n- medium: moderate impact, requires review\n- high: significant impact, requires approval\n\nRecommended workflows:\n- WF-1: Business Strategist (strategy tasks)\n- WF-2: Finance (financial tasks)\n- WF-3: Operations (operational tasks)\n- WF-4: R&D (product development)\n- WF-5: Marketing (marketing campaigns)\n- WF-6: Sales (sales operations)\n- WF-7: Customer Experience (CX tasks)\n- WF-9: Tech/Infrastructure (technical tasks)\n\nMode:\n- simulation: safe preview mode (default)\n- execute: actual execution mode\n\nRemember: You classify and route. WF-10 decides and controls.\n\nDECOMPOSITION (IMPORTANT):\nA single request may involve MULTIPLE departments. Break it into subtasks — ONE subtask per\ndepartment needed — and return them all in the \"subtasks\" array.\nExample: \"Launch a 20% discount campaign, collect customer feedback via the app, and reorder\ninventory if stock < 100\" -> THREE subtasks:\n  1) department=marketing  (run the discount campaign + spend)\n  2) department=cx         (collect customer feedback)\n  3) department=operations (auto-reorder inventory)\nA simple single-department request returns exactly ONE subtask. Always return at least one\nsubtask. Do not merge unrelated department work into a single subtask."
         }
       },
       "id": "6f48d0c3-ecb1-4d3f-945a-51d59fce62aa",
@@ -121,8 +121,8 @@
       "alwaysOutputData": true,
       "onError": "continueRegularOutput",
       "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000
+      "maxTries": 5,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -156,7 +156,7 @@
     {
       "parameters": {
         "schemaType": "manual",
-        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"intent_summary\": {\n      \"type\": \"string\",\n      \"description\": \"Summary of the user's intent\"\n    },\n    \"department\": {\n      \"type\": \"string\",\n      \"enum\": [\"finance\", \"operations\", \"marketing\", \"sales\", \"rnd\", \"cx\", \"tech\", \"infra\", \"hr\", \"strategy\"],\n      \"description\": \"Target department for the request\"\n    },\n    \"task_type\": {\n      \"type\": \"string\",\n      \"enum\": [\"strategic\", \"operational\", \"financial\", \"technical\", \"compliance\"],\n      \"description\": \"Type of task being requested\"\n    },\n    \"urgency\": {\n      \"type\": \"string\",\n      \"enum\": [\"low\", \"medium\", \"high\"],\n      \"description\": \"Urgency level of the request\"\n    },\n    \"risk_level\": {\n      \"type\": \"string\",\n      \"enum\": [\"low\", \"medium\", \"high\"],\n      \"description\": \"Risk level associated with the request\"\n    },\n    \"recommended_workflow\": {\n      \"type\": \"string\",\n      \"enum\": [\"WF-1\", \"WF-2\", \"WF-3\", \"WF-4\", \"WF-5\", \"WF-6\", \"WF-7\", \"WF-9\"],\n      \"description\": \"Recommended workflow to handle the request\"\n    },\n    \"mode\": {\n      \"type\": \"string\",\n      \"enum\": [\"simulation\", \"execute\"],\n      \"description\": \"Execution mode for the request\"\n    },\n    \"confidence_score\": {\n      \"type\": \"number\",\n      \"minimum\": 0,\n      \"maximum\": 1,\n      \"description\": \"Confidence score of the classification\"\n    }\n  },\n  \"required\": [\"intent_summary\", \"department\", \"task_type\", \"urgency\", \"risk_level\", \"recommended_workflow\", \"mode\", \"confidence_score\"]\n}"
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"intent_summary\": {\n      \"type\": \"string\",\n      \"description\": \"Overall summary of the user's whole request\"\n    },\n    \"mode\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"simulation\",\n        \"execute\"\n      ]\n    },\n    \"subtasks\": {\n      \"type\": \"array\",\n      \"description\": \"One entry per department involved. Split a multi-part request into separate subtasks.\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"intent_summary\": {\n            \"type\": \"string\",\n            \"description\": \"What THIS subtask asks the department to do\"\n          },\n          \"department\": {\n            \"type\": \"string\",\n            \"enum\": [\n              \"finance\",\n              \"operations\",\n              \"marketing\",\n              \"sales\",\n              \"rnd\",\n              \"cx\",\n              \"tech\",\n              \"infra\",\n              \"hr\",\n              \"strategy\"\n            ]\n          },\n          \"task_type\": {\n            \"type\": \"string\",\n            \"enum\": [\n              \"strategic\",\n              \"operational\",\n              \"financial\",\n              \"technical\",\n              \"compliance\"\n            ]\n          },\n          \"urgency\": {\n            \"type\": \"string\",\n            \"enum\": [\n              \"low\",\n              \"medium\",\n              \"high\"\n            ]\n          },\n          \"risk_level\": {\n            \"type\": \"string\",\n            \"enum\": [\n              \"low\",\n              \"medium\",\n              \"high\"\n            ]\n          },\n          \"confidence_score\": {\n            \"type\": \"number\",\n            \"minimum\": 0,\n            \"maximum\": 1\n          }\n        },\n        \"required\": [\n          \"intent_summary\",\n          \"department\",\n          \"task_type\",\n          \"urgency\",\n          \"risk_level\",\n          \"confidence_score\"\n        ]\n      }\n    }\n  },\n  \"required\": [\n    \"intent_summary\",\n    \"mode\",\n    \"subtasks\"\n  ]\n}"
       },
       "id": "302dc95c-db54-4138-af82-79108f6a8ac6",
       "name": "Structured Output Parser (CEO Classification)",
@@ -169,444 +169,8 @@
     },
     {
       "parameters": {
-        "rules": {
-          "values": [
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.department }}",
-                    "rightValue": "finance",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.department }}",
-                    "rightValue": "operations",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.department }}",
-                    "rightValue": "rnd",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.department }}",
-                    "rightValue": "marketing",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.department }}",
-                    "rightValue": "sales",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.department }}",
-                    "rightValue": "cx",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.department }}",
-                    "rightValue": "tech",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  },
-                  {
-                    "leftValue": "={{ $json.department }}",
-                    "rightValue": "infra",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "or"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.department }}",
-                    "rightValue": "strategy",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 1
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.department }}",
-                    "rightValue": "hr",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "3aa4e36b-f43e-4e86-a3c0-aef5fba95ad2",
-      "name": "Department Router",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.4,
-      "position": [
-        -448,
-        832
-      ],
-      "alwaysOutputData": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "rNv9DzGl7IFHotwO",
-          "mode": "id",
-          "cachedResultName": "rNv9DzGl7IFHotwO"
-        },
-        "workflowInputs": {
-          "mappingMode": "json",
-          "value": "={{ $json }}"
-        },
-        "options": {}
-      },
-      "id": "c34dcb1e-e9c4-4322-80a8-71a48b18640b",
-      "name": "Execute Finance Workflow (WF-2)",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -224,
-        176
-      ],
-      "alwaysOutputData": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "tQ9crXF3P0NOlWDy",
-          "mode": "id",
-          "cachedResultName": "tQ9crXF3P0NOlWDy"
-        },
-        "workflowInputs": {
-          "mappingMode": "json",
-          "value": "={{ $json }}"
-        },
-        "options": {}
-      },
-      "id": "2941eb24-d248-4f7d-a842-4a3e8c758ad0",
-      "name": "Execute Operations Workflow (WF-3)",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -224,
-        368
-      ],
-      "alwaysOutputData": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "wruDXEwcbxlP2D7x",
-          "mode": "id",
-          "cachedResultName": "wruDXEwcbxlP2D7x"
-        },
-        "workflowInputs": {
-          "mappingMode": "json",
-          "value": "={{ $json }}"
-        },
-        "options": {}
-      },
-      "id": "514b877c-6191-41ef-acfa-7ff3cb990b23",
-      "name": "Execute R&D Workflow (WF-4)",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -224,
-        560
-      ],
-      "alwaysOutputData": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "IYl2NVikGCyySSU2",
-          "mode": "id",
-          "cachedResultName": "IYl2NVikGCyySSU2"
-        },
-        "workflowInputs": {
-          "mappingMode": "json",
-          "value": "={{ $json }}"
-        },
-        "options": {}
-      },
-      "id": "46c83527-aa45-49eb-b2ab-a1b6815e1ee0",
-      "name": "Execute Marketing Workflow (WF-5)",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -224,
-        752
-      ],
-      "alwaysOutputData": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "fjiL4YeNQ7FN4Yn5",
-          "mode": "id",
-          "cachedResultName": "fjiL4YeNQ7FN4Yn5"
-        },
-        "workflowInputs": {
-          "mappingMode": "json",
-          "value": "={{ $json }}"
-        },
-        "options": {}
-      },
-      "id": "afbba6ba-f413-4262-aa7e-3093e104fdc4",
-      "name": "Execute Sales Workflow (WF-6)",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -224,
-        944
-      ],
-      "alwaysOutputData": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "IQ2YHdJsjseOTWAL",
-          "mode": "id",
-          "cachedResultName": "IQ2YHdJsjseOTWAL"
-        },
-        "workflowInputs": {
-          "mappingMode": "json",
-          "value": "={{ $json }}"
-        },
-        "options": {}
-      },
-      "id": "62b68d8f-de7c-4fd4-9f7d-b3472ed08a24",
-      "name": "Execute CX Workflow (WF-7)",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -224,
-        1136
-      ]
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "buYXMmxB3EmybKBk",
-          "mode": "id",
-          "cachedResultName": "buYXMmxB3EmybKBk"
-        },
-        "workflowInputs": {
-          "mappingMode": "json",
-          "value": "={{ $json }}"
-        },
-        "options": {}
-      },
-      "id": "109f7cee-34ab-498e-8f73-0833265f2bc7",
-      "name": "Execute Tech/Infra Workflow (WF-9)",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -224,
-        1328
-      ],
-      "alwaysOutputData": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "crzJvTXgeYpSYXTI",
-          "mode": "id",
-          "cachedResultName": "crzJvTXgeYpSYXTI"
-        },
-        "workflowInputs": {
-          "mappingMode": "json",
-          "value": "={{ $json }}"
-        },
-        "options": {}
-      },
-      "id": "f5c03989-986a-4f00-aebf-adf593c4be2a",
-      "name": "Execute Strategy Workflow (WF-1)",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -224,
-        1520
-      ]
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "flYawPgsikdzuAek",
-          "mode": "id",
-          "cachedResultName": "flYawPgsikdzuAek"
-        },
-        "workflowInputs": {
-          "mappingMode": "json",
-          "value": "={{ $json }}"
-        },
-        "options": {}
-      },
-      "id": "402617c8-fbf1-473e-a825-039fb7365021",
-      "name": "Execute HR Workflow (WF-HR)",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        -224,
-        1712
-      ],
-      "alwaysOutputData": true,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Logging only - no authority to decide, approve, or block\n// This node only logs routing, proposal, and WF-10 response\nconst contract = $input.first().json;\n\n// Add execution log entry (logging only, no decision-making)\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: 'WF-0',\n  action: 'received_and_forwarded',\n  details: 'Request received and forwarded to WF-10 and department workflows for evaluation'\n};\n\n// Append to audit logs without changing decision_status\nconst updatedContract = {\n  ...contract,\n  audit: {\n    ...contract.audit,\n    logs: [...(contract.audit?.logs || []), logEntry]\n  }\n};\n\nconsole.log('WF-0 Routing Log:', JSON.stringify(logEntry, null, 2));\n\nreturn [{ json: updatedContract }];"
+        "jsCode": "// Logging only (no authority). Append an audit log entry to EVERY subtask contract.\nreturn $input.all().map(item => {\n  const c = item.json;\n  const logEntry = { timestamp: new Date().toISOString(), workflow: \"WF-0\", action: \"received_and_forwarded\", details: \"Routed to WF-10 and department for evaluation\" };\n  const prev = (c.audit && Array.isArray(c.audit.logs)) ? c.audit.logs : [];\n  return { json: { ...c, audit: { ...(c.audit||{}), logs: [...prev, logEntry] } } };\n});",
+        "mode": "runOnceForAllItems"
       },
       "id": "d09d2b97-b452-4af4-aa9d-ec3d2a4df3bb",
       "name": "Log Decision & Execution",
@@ -621,65 +185,13 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "f1",
-              "name": "request_id",
-              "value": "={{ $json.request_id }}",
-              "type": "string"
-            },
-            {
-              "id": "f2",
-              "name": "decision_status",
-              "value": "={{ $json.decision_status }}",
-              "type": "string"
-            },
-            {
-              "id": "f3",
-              "name": "execution_allowed",
-              "value": "={{ $json.execution_allowed }}",
-              "type": "boolean"
-            },
-            {
-              "id": "f4",
-              "name": "department",
-              "value": "={{ $json.department }}",
-              "type": "string"
-            },
-            {
-              "id": "f5",
-              "name": "mode",
-              "value": "={{ $json.mode }}",
-              "type": "string"
-            },
-            {
-              "id": "f6",
-              "name": "reason",
-              "value": "={{ $json.reason }}",
-              "type": "string"
-            },
-            {
-              "id": "f7",
-              "name": "intent_summary",
-              "value": "={{ $json.intent_summary }}",
-              "type": "string"
-            },
-            {
-              "id": "f8",
-              "name": "timestamp",
-              "value": "={{ $now.toISO() }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {},
-        "includeOtherFields": false
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst results = items.map(i => ({\n  request_id: i.json.request_id,\n  department: i.json.department,\n  decision_status: i.json.decision_status,\n  execution_allowed: i.json.execution_allowed,\n  reason: i.json.reason,\n  intent_summary: i.json.intent_summary,\n}));\nreturn [{ json: {\n  parent_request_id: items[0] ? items[0].json.parent_request_id : null,\n  subtask_count: results.length,\n  departments: results.map(r => r.department),\n  results,\n  mode: items[0] ? items[0].json.mode : null,\n  timestamp: new Date().toISOString(),\n} }];"
       },
       "id": "82d4d414-0dbc-4f88-a3a7-585e806e377a",
       "name": "Build Final Response",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         448,
         944
@@ -900,7 +412,8 @@
     },
     {
       "parameters": {
-        "jsCode": "// Keep the known-valid governance contract authoritative; attach department output for logging.\nconst deptResult = $input.first().json;\nlet base = {};\ntry { base = $('Attach CEO Classification to Contract').item.json; } catch (e) { base = {}; }\nconst merged = { ...base, department_result: deptResult };\nreturn [{ json: merged }];"
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Restore the governance contract for THIS subtask and attach the department result.\nconst deptResult = $json;\nlet base = {};\ntry { base = $('Attach CEO Classification to Contract').item.json; } catch (e) { base = {}; }\nreturn { ...base, department_result: deptResult };"
       },
       "id": "7c74fc64-352f-48ef-8c5e-b081cc0b9a19",
       "name": "Contract Validator – Enforced",
@@ -913,131 +426,13 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "a1",
-              "name": "request_id",
-              "value": "={{ $('Contract Builder').item.json.request_id }}",
-              "type": "string"
-            },
-            {
-              "id": "a2",
-              "name": "source_workflow",
-              "value": "WF-0",
-              "type": "string"
-            },
-            {
-              "id": "a3",
-              "name": "source_workflow_id",
-              "value": "={{ $workflow.id }}",
-              "type": "string"
-            },
-            {
-              "id": "a4",
-              "name": "department",
-              "value": "={{ $('CEO Agent').item.json.output.department }}",
-              "type": "string"
-            },
-            {
-              "id": "a5",
-              "name": "task_type",
-              "value": "={{ $('CEO Agent').item.json.output.task_type }}",
-              "type": "string"
-            },
-            {
-              "id": "a6",
-              "name": "urgency",
-              "value": "={{ $('CEO Agent').item.json.output.urgency }}",
-              "type": "string"
-            },
-            {
-              "id": "a7",
-              "name": "intent_summary",
-              "value": "={{ $('CEO Agent').item.json.output.intent_summary }}",
-              "type": "string"
-            },
-            {
-              "id": "a8",
-              "name": "recommended_workflow",
-              "value": "={{ $('CEO Agent').item.json.output.recommended_workflow }}",
-              "type": "string"
-            },
-            {
-              "id": "a9",
-              "name": "mode",
-              "value": "={{ $('CEO Agent').item.json.output.mode || $('Contract Builder').item.json.mode || 'simulation' }}",
-              "type": "string"
-            },
-            {
-              "id": "a10",
-              "name": "confidence",
-              "value": "={{ $('CEO Agent').item.json.output.confidence_score || 0.7 }}",
-              "type": "number"
-            },
-            {
-              "id": "a11",
-              "name": "risk_level",
-              "value": "={{ $('CEO Agent').item.json.output.risk_level || $('Contract Builder').item.json.risk_level || 'low' }}",
-              "type": "string"
-            },
-            {
-              "id": "a12",
-              "name": "founder_available",
-              "value": "={{ false }}",
-              "type": "boolean"
-            },
-            {
-              "id": "a13",
-              "name": "crea_status",
-              "value": "={{ $('Contract Builder').item.json.crea_status || 'pending' }}",
-              "type": "string"
-            },
-            {
-              "id": "a14",
-              "name": "crea_reason",
-              "value": "={{ null }}",
-              "type": "string"
-            },
-            {
-              "id": "a15",
-              "name": "failure_count",
-              "value": "={{ 0 }}",
-              "type": "number"
-            },
-            {
-              "id": "a16",
-              "name": "decision_status",
-              "value": "proposed",
-              "type": "string"
-            },
-            {
-              "id": "a17",
-              "name": "audit",
-              "value": "={{ $('Contract Builder').item.json.audit }}",
-              "type": "object"
-            },
-            {
-              "id": "a18",
-              "name": "payload",
-              "value": "={{ $('Contract Builder').item.json.raw_input.body.payload || {} }}",
-              "type": "object"
-            },
-            {
-              "id": "a19",
-              "name": "timestamp",
-              "value": "={{ $now.toISO() }}",
-              "type": "string"
-            }
-          ]
-        },
-        "includeOtherFields": false,
-        "options": {}
+        "mode": "runOnceForAllItems",
+        "jsCode": "const DEPT2WF = { finance:'rNv9DzGl7IFHotwO', operations:'tQ9crXF3P0NOlWDy', rnd:'wruDXEwcbxlP2D7x', marketing:'IYl2NVikGCyySSU2', sales:'fjiL4YeNQ7FN4Yn5', cx:'IQ2YHdJsjseOTWAL', tech:'buYXMmxB3EmybKBk', infra:'buYXMmxB3EmybKBk', hr:'flYawPgsikdzuAek', strategy:'crzJvTXgeYpSYXTI' };\nconst base = $('Contract Builder').first().json;\nconst ceo = ($('CEO Agent').first().json || {}).output || {};\nlet subs = Array.isArray(ceo.subtasks) && ceo.subtasks.length ? ceo.subtasks : null;\nif (!subs) subs = [{ intent_summary: ceo.intent_summary, department: ceo.department, task_type: ceo.task_type, urgency: ceo.urgency, risk_level: ceo.risk_level, confidence_score: ceo.confidence_score }];\nreturn subs.map((s, i) => ({ json: {\n  request_id: (base.request_id || 'req') + '_' + (s.department || ('t' + i)),\n  parent_request_id: base.request_id || null,\n  source_workflow: 'WF-0',\n  source_workflow_id: $workflow.id,\n  department: s.department,\n  target_workflow_id: DEPT2WF[s.department] || null,\n  task_type: s.task_type,\n  urgency: s.urgency,\n  intent_summary: s.intent_summary,\n  mode: ceo.mode || base.mode || 'simulation',\n  confidence: typeof s.confidence_score === 'number' ? s.confidence_score : 0.7,\n  risk_level: s.risk_level || base.risk_level || 'low',\n  founder_available: false,\n  crea_status: base.crea_status || 'pending',\n  crea_reason: null,\n  failure_count: 0,\n  decision_status: 'proposed',\n  audit: base.audit || { original_contract_hash: '', logs: [], approvals: [], overrides: [] },\n  payload: (base.raw_input && base.raw_input.body && base.raw_input.body.payload) || {},\n  timestamp: new Date().toISOString(),\n} }));"
       },
       "id": "bdba22a6-0d6b-4faf-9955-e87696f3eff2",
       "name": "Attach CEO Classification to Contract",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         -1120,
         560
@@ -1263,6 +658,29 @@
         1540,
         360
       ]
+    },
+    {
+      "id": "exec-department-dynamic",
+      "name": "Execute Department",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -448,
+        832
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ ({finance:'rNv9DzGl7IFHotwO',operations:'tQ9crXF3P0NOlWDy',rnd:'wruDXEwcbxlP2D7x',marketing:'IYl2NVikGCyySSU2',sales:'fjiL4YeNQ7FN4Yn5',cx:'IQ2YHdJsjseOTWAL',tech:'buYXMmxB3EmybKBk',infra:'buYXMmxB3EmybKBk',hr:'flYawPgsikdzuAek',strategy:'crzJvTXgeYpSYXTI'})[$json.department] }}"
+        },
+        "workflowInputs": {
+          "mappingMode": "json",
+          "value": "={{ $json }}"
+        },
+        "options": {},
+        "mode": "each"
+      }
     }
   ],
   "pinData": {},
@@ -1328,172 +746,6 @@
           {
             "node": "CEO Agent",
             "type": "ai_outputParser",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Department Router": {
-      "main": [
-        [
-          {
-            "node": "Execute Finance Workflow (WF-2)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Execute Operations Workflow (WF-3)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Execute R&D Workflow (WF-4)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Execute Marketing Workflow (WF-5)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Execute Sales Workflow (WF-6)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Execute CX Workflow (WF-7)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Execute Tech/Infra Workflow (WF-9)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Execute Strategy Workflow (WF-1)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Execute HR Workflow (WF-HR)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execute Finance Workflow (WF-2)": {
-      "main": [
-        [
-          {
-            "node": "Contract Validator – Enforced",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execute Operations Workflow (WF-3)": {
-      "main": [
-        [
-          {
-            "node": "Contract Validator – Enforced",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execute R&D Workflow (WF-4)": {
-      "main": [
-        [
-          {
-            "node": "Contract Validator – Enforced",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execute Marketing Workflow (WF-5)": {
-      "main": [
-        [
-          {
-            "node": "Contract Validator – Enforced",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execute Sales Workflow (WF-6)": {
-      "main": [
-        [
-          {
-            "node": "Contract Validator – Enforced",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execute CX Workflow (WF-7)": {
-      "main": [
-        [
-          {
-            "node": "Contract Validator – Enforced",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execute Tech/Infra Workflow (WF-9)": {
-      "main": [
-        [
-          {
-            "node": "Contract Validator – Enforced",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execute Strategy Workflow (WF-1)": {
-      "main": [
-        [
-          {
-            "node": "Contract Validator – Enforced",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execute HR Workflow (WF-HR)": {
-      "main": [
-        [
-          {
-            "node": "Contract Validator – Enforced",
-            "type": "main",
             "index": 0
           }
         ]
@@ -1620,7 +872,7 @@
       "main": [
         [
           {
-            "node": "Department Router",
+            "node": "Execute Department",
             "type": "main",
             "index": 0
           }
@@ -1679,6 +931,17 @@
         [
           {
             "node": "Log Decision & Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Department": {
+      "main": [
+        [
+          {
+            "node": "Contract Validator – Enforced",
             "type": "main",
             "index": 0
           }

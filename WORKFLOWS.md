@@ -10,7 +10,7 @@ workflow ID (cross-workflow calls) and by HTTP (the governance webhook).
 
 | # | Workflow | Role | Agents | Entry | Calls |
 |---|----------|------|:------:|-------|-------|
-| 0 | **CEO Orchestrator** | Front door — classify & route every request | 1 | Webhook / Schedule / Manual | WF-10, then one department |
+| 0 | **CEO Orchestrator** | Front door — decompose & fan out every request | 1 | Webhook / Schedule / Manual | WF-10, then each relevant department |
 | 1 | **Strategy (CBS)** | Strategic evaluation & multi-dept synthesis | 2 | Execute Workflow | WF-2,3,4,5,6,8 |
 | 2 | **Finance (CFO)** | Financial decisions, cost & risk control | 6 | Execute Workflow | WF-2 internal |
 | 3 | **Operations (COO)** | Demand, inventory, fulfilment | 7 | Execute Workflow | WF-2 |
@@ -53,12 +53,14 @@ the final response carries the resulting decision.
 
 ### WF-0 · CEO Orchestrator — *the front door*
 The only public entry point (webhook `ceo-orchestrator`, plus schedule and manual triggers for
-testing). The **CEO Agent** reads the incoming task, classifies it (department, task type,
-urgency, risk, confidence), and assembles the Universal Decision Contract. It then:
+testing). The **CEO Agent** reads the incoming task and **decomposes it into one or more
+per-department subtasks** (a compound request fans out across several departments), assembling a
+Universal Decision Contract for each. Then, **per subtask**, it:
 1. calls **WF-10** for an **approval gate**,
-2. routes the approved contract to the right department,
+2. routes the approved contract to its department via a single dynamic *Execute Department* node
+   (it resolves the target workflow from the subtask's department, running once per subtask),
 3. after the department runs, calls **WF-10** again for an **execution gate**,
-4. returns the final decision.
+4. aggregates every subtask's verdict into one combined response.
 
 ### WF-10 · Global Guardrail Authority & Decision Ledger — *the law*
 A deterministic, rules-only workflow (no LLM). It is the authority every decision passes

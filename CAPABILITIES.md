@@ -11,16 +11,18 @@ end to end, automatically.**
 
 Send one HTTP request to the CEO. The system will:
 
-1. **Understand and classify it** — the CEO agent decides which department owns it, how risky it
-   is, how urgent, and how confident it is.
-2. **Govern it** — the Global Guardrail validates the request, scores its risk, and either
+1. **Understand and decompose it** — the CEO agent breaks the request into one or more
+   per-department subtasks (a compound request like "run a campaign, collect feedback, and
+   reorder stock" becomes three subtasks), classifying each by department, risk, urgency, and
+   confidence.
+2. **Govern each subtask** — the Global Guardrail validates it, scores its risk, and either
    approves or blocks it *before any work starts*.
-3. **Execute it** — the owning department's team of agents reasons through the task and produces
-   a structured decision.
-4. **Re-govern it** — the proposed action is sent back through the guardrail before it is
+3. **Execute across departments** — every relevant department's team of agents reasons through
+   its subtask and produces a structured decision (departments run in parallel).
+4. **Re-govern it** — each proposed action is sent back through the guardrail before it is
    treated as final.
-5. **Log and return it** — the verdict is recorded in a decision ledger and returned to the
-   caller as structured JSON.
+5. **Aggregate, log and return** — every subtask verdict is logged and returned together as one
+   structured JSON response.
 
 All of this happens in one request, with no human in the loop unless the governance rules
 demand one.
@@ -79,7 +81,7 @@ This is the part that makes it a system rather than a demo:
 (The external integrations are credential-gated — drop in your own Slack/Sheets/Gmail
 credentials to turn them on; the core reasoning runs without them.)
 
-## Example: one request, fully governed
+## Example: one compound request, fully governed
 
 **Request**
 ```json
@@ -87,30 +89,31 @@ POST /webhook/ceo-orchestrator
 {
   "request_id": "demo_42",
   "mode": "simulation",
-  "risk_level": "low",
-  "payload": { "task": "Plan inventory replenishment for next quarter" }
+  "risk_level": "medium",
+  "payload": { "task": "Launch a 20% discount campaign for the first 500 customers, collect customer feedback through the app, and reorder inventory if stock falls below 100 units" }
 }
 ```
 
 **What happens**
 ```
-CEO Agent        → classifies: department=operations, task_type=operational, confidence=0.85
-Global Guardrail → schema valid, low risk, simulation → approved (proposed)
-Operations dept  → 7 agents: forecast demand → supply-chain → replenishment → packaging →
-                   logistics → routing → stock monitor
-Guardrail (exec) → re-checked, cleared
-Ledger           → decision recorded
+CEO Agent        → decomposes into 3 subtasks: marketing | cx | operations
+Global Guardrail → validates & risk-scores each subtask → approved (proposed)
+Departments      → Marketing (campaign), CX (feedback), Operations (reorder) all run in parallel
+Guardrail (exec) → each re-checked, cleared
+Aggregate        → all three verdicts combined into one response
 ```
 
 **Response**
 ```json
 {
-  "request_id": "demo_42",
-  "department": "operations",
-  "decision_status": "proposed",
-  "execution_allowed": false,
-  "reason": "Simulation mode - execution blocked. No side effects permitted.",
-  "timestamp": "..."
+  "subtask_count": 3,
+  "departments": ["marketing", "cx", "operations"],
+  "results": [
+    { "request_id": "demo_42_marketing",  "department": "marketing",  "decision_status": "proposed", "execution_allowed": false },
+    { "request_id": "demo_42_cx",         "department": "cx",         "decision_status": "proposed", "execution_allowed": false },
+    { "request_id": "demo_42_operations", "department": "operations", "decision_status": "proposed", "execution_allowed": false }
+  ],
+  "mode": "simulation"
 }
 ```
 
@@ -118,9 +121,9 @@ Flip `mode` to `execute` and the same request runs the stricter gates and permit
 
 ## What's demonstrated vs. what extends it
 
-**Working today:** the full multi-agent organization — classification, governance, routing,
-department execution with real agent reasoning, cross-department consultation, the two gates,
-and the decision ledger — all end to end.
+**Working today:** the full multi-agent organization — task decomposition + multi-department
+fan-out, governance, department execution with real agent reasoning, cross-department
+consultation, the two gates, result aggregation, and the decision ledger — all end to end.
 
 **Natural extensions** (the agents currently reason from the model alone): wire the L3/L4 agents
 to live data sources — CRM, inventory database, market-price APIs, a vector DB / knowledge
