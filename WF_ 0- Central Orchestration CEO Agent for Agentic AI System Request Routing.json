@@ -681,6 +681,58 @@
         "options": {},
         "mode": "each"
       }
+    },
+    {
+      "id": "policy-guard-if",
+      "name": "Policy Guard",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1808,
+        944
+      ],
+      "parameters": {
+        "options": {
+          "caseSensitive": false,
+          "typeValidation": "loose",
+          "version": 2
+        },
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "pg1",
+              "leftValue": "={{ /(auto[- ]?approve|approve all|approve everything|no human review|no review|without (human )?(review|approval|oversight)|skip (the )?(crea|review|governance|approval|checks?)|bypass (the )?(governance|review|approval|controls?|guardrail|crea)|disable (the )?(governance|guardrail|controls?|oversight|crea|review)|remove (the )?(oversight|approval|review|controls?))/i.test(JSON.stringify($json)) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "policy-blocked-response",
+      "name": "Policy Violation Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1808,
+        1120
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const c = $json;\nconst rid = c.request_id || (c.raw_input && c.raw_input.body && c.raw_input.body.request_id) || 'unknown';\nreturn [{ json: {\n  request_id: rid,\n  decision_status: 'blocked',\n  execution_allowed: false,\n  policy_violation: true,\n  blocked_by: 'WF-0 Policy Guard',\n  reason: 'Policy violation: this request attempts to bypass governance or human oversight (e.g. auto-approve all / skip review / disable controls). Denied. Such changes require explicit founder authorization and a Risk & Ethics (CREA) review.',\n  timestamp: new Date().toISOString(),\n} }];"
+      }
     }
   ],
   "pinData": {},
@@ -722,7 +774,7 @@
       "main": [
         [
           {
-            "node": "CEO Agent",
+            "node": "Policy Guard",
             "type": "main",
             "index": 0
           }
@@ -942,6 +994,35 @@
         [
           {
             "node": "Contract Validator – Enforced",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Policy Guard": {
+      "main": [
+        [
+          {
+            "node": "Policy Violation Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CEO Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Policy Violation Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
             "type": "main",
             "index": 0
           }
