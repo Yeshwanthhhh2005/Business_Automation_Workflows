@@ -128,8 +128,8 @@
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-4o-mini",
-          "cachedResultName": "gpt-4o-mini"
+          "value": "gpt-4o",
+          "cachedResultName": "gpt-4o"
         },
         "builtInTools": {},
         "options": {}
